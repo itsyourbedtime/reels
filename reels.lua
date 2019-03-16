@@ -206,6 +206,15 @@ local function clear_track(tr)
   print("Clear buffer region " .. reel.s[tr] + clip_len_s * 48000)
 end
 -- PERSISTENCE
+local function init_folders()
+  if util.file_exists(_path.dust .. "reels/data") == false then
+    util.make_dir(_path.dust .. "reels/data")
+  end
+  if util.file_exists(_path.audio .. "reels/") == false then
+    util.make_dir(_path.audio .. "reels/")
+  end
+end
+
 local function new_reel()
   softcut.buffer_clear()
   reel.name = {"-","-","-","-"}
@@ -299,8 +308,8 @@ local function save_clip(txt)
   if txt then
     local c_start = reel.s[trk]
     local c_len = reel.e[trk]
-    print("SAVE " .. audio_dir .. txt .. ".aif", c_start, c_len)
-    softcut.write(audio_dir..txt..".aif",c_start,c_len)
+    print("SAVE " .. _path.audio .. txt .. ".aif", c_start, c_len)
+    softcut.write(_path.audio..txt..".aif",c_start,c_len)
     reel.name[trk] = txt
   else
     print("save cancel")
@@ -315,14 +324,14 @@ local function save_project(txt)
       if reel.name[i] ~= "-" then
         if reel.name[i]:find("*") then
           local name = reel.name[i] == "*-" and (txt .. "-rec-" .. i .. ".aif") or reel.name[i]:sub(2,-1) -- remove asterisk
-          local save_path = audio_dir .."reels/" .. name
+          local save_path = _path.audio .."reels/" .. name
           reel.paths[i] = save_path
           print("saving "..i .. "clip at " .. save_path, reel.s[i],reel.e[i])
-          softcut.write(audio_dir.."reels/" .. name, reel.s[i],reel.e[i])
+          softcut.write(_path.audio .."reels/" .. name, reel.s[i],reel.e[i])
         end
       end
     end
-    tab.save(reel, home_dir.."/dust/data/reels/".. txt ..".reel")
+    tab.save(reel, _path.dust.."reels/data/".. txt ..".reel")
   else
     print("save cancel")
   end
@@ -551,9 +560,6 @@ function init()
     softcut.loop_start(i, reel.s[i])
     softcut.loop_end(i, reel.e[i])
     softcut.loop(i,1)
-
-
-    
     update_rate(i)
 
     --softcut.phase_quant(i,calc_quant(i))
@@ -567,6 +573,7 @@ function init()
     l_reel[i].position = i <= 2 and 3 or i <= 4 and 5 or 7.1
     l_reel[i].velocity = util.linlin(0, 1, 0.01, speed*3, 0.2)
   end
+  init_folders()
   update_reel()
   -- settings
   settings_list = UI.ScrollingList.new(75, 12, 1, {"Load reel", "New reel"})
@@ -581,8 +588,8 @@ function init()
   --
   counter = metro.init{event = count, time = 0.01,count =  -1}
   counter:start()
-  play_counter = metro.init{event = function(stage) if playing == true then play_count() end end,time = 0.01,count = -1}
-  blink_metro = metro.init{event = function(stage) blink = not blink end,time = 1 / 2}
+  play_counter = metro.init{event = function(stage) if playing == true then play_count() end end,time = 0.01, count = -1}
+  blink_metro = metro.init{event = function(stage) blink = not blink end, time = 1 / 2}
   blink_metro:start()
   reel_redraw = metro.init{event = function(stage) redraw() animation() end, time = 1 / 60}
   reel_redraw:start()
@@ -624,13 +631,13 @@ function key(n,z)
           if mounted then
             if reel.clip[trk] == 0  then
               filesel = true
-              fileselect.enter(audio_dir, load_clip)
+              fileselect.enter(_path.audio, load_clip)
             elseif reel.clip[trk] == 1 then
               mute(trk, not mutes[trk])
             end
           else
             filesel = true
-            fileselect.enter(home_dir .."/dust/data/reels/", load_mix)
+            fileselect.enter(_path.dust .."reels/data/", load_mix)
           end
         elseif settings_list.index == 2 then
           if not mounted then new_reel() end
@@ -639,7 +646,7 @@ function key(n,z)
           loop(reel.loop == 1 and true or false)
         elseif settings_list.index == 8 then
           filesel = true
-          fileselect.enter(audio_dir, load_clip)
+          fileselect.enter(_path.audio, load_clip)
         elseif settings_list.index == 9 then
           filesel = true
           textentry.enter(save_clip, reel.name[trk] == "-*" and "reel-" .. (math.random(9000)+1000) or (reel.name[trk]:find("*") and reel.name[trk]:match("[^.]*")):sub(2,-1))
@@ -652,7 +659,7 @@ function key(n,z)
           textentry.enter(save_project, reel.proj)
         elseif settings_list.index == 15 then
           filesel = true
-            fileselect.enter(home_dir .."/dust/data/reels/", load_mix)
+            fileselect.enter(_path.dust .."reels/data/", load_mix)
         elseif settings_list.index == 16 then
           warble_state = not warble_state
         end
