@@ -207,8 +207,8 @@ local function clear_track(tr)
 end
 -- PERSISTENCE
 local function init_folders()
-  if util.file_exists(_path.dust .. "reels/data") == false then
-    util.make_dir(_path.dust .. "reels/data")
+  if util.file_exists(_path.data .. "reels/") == false then
+    util.make_dir(_path.data .. "reels/")
   end
   if util.file_exists(_path.audio .. "reels/") == false then
     util.make_dir(_path.audio .. "reels/")
@@ -331,7 +331,7 @@ local function save_project(txt)
         end
       end
     end
-    tab.save(reel, _path.dust.."reels/data/".. txt ..".reel")
+    tab.save(reel, _path.data.."reels/".. txt ..".reel")
   else
     print("save cancel")
   end
@@ -637,7 +637,7 @@ function key(n,z)
             end
           else
             filesel = true
-            fileselect.enter(_path.dust .."reels/data/", load_mix)
+            fileselect.enter(_path.data .."reels/", load_mix)
           end
         elseif settings_list.index == 2 then
           if not mounted then new_reel() end
@@ -659,7 +659,7 @@ function key(n,z)
           textentry.enter(save_project, reel.proj)
         elseif settings_list.index == 15 then
           filesel = true
-            fileselect.enter(_path.dust .."reels/data/", load_mix)
+            fileselect.enter(_path.data.."reels/", load_mix)
         elseif settings_list.index == 16 then
           warble_state = not warble_state
         end
