@@ -167,9 +167,6 @@ local function rec(tr, state)
     reel.clip[tr] = 1
     counter:stop()
     update_params_list()
-    if mutes[tr] == true then -- unmute?
-      mute(tr,false)
-    end
   end
 end
 
@@ -543,31 +540,29 @@ function init()
   audio.level_adc_cut(1)
   audio.level_ext_cut(1)
   for i=1,4 do
-    sc.level(i,0)
+    sc.level(i,1)
     sc.level_slew_time(1,0.1)
     sc.level_input_cut(1, i, 1.0)
     sc.level_input_cut(2, i, 1.0)
     sc.pan(i, 0.5)
     sc.play(i, 1)
     sc.rate(i, 1)
-    sc.loop_start(i, 1)
-    sc.loop_end(i, 91)
-    sc.loop(i, 1)
-    sc.fade_time(i, 0.1)
-    sc.rec(i, 1)
-    sc.rec_level(i, 0)
-    sc.pre_level(i, 1)
-    sc.position(i, 1)
-    sc.buffer(i,1)
-    sc.enable(i, 1)
     reel.s[i] = (i-1) * clip_len_s
     reel.e[i] = reel.s[i] + (clip_len_s - 2)
     sc.loop_start(i, reel.s[i])
     sc.loop_end(i, reel.e[i])
-    sc.loop(i,1)
+
+    sc.loop(i, 1)
+    sc.fade_time(i, 0.1)
+    sc.rec(i, 0)
+    sc.rec_level(i, 1)
+    sc.pre_level(i, 1)
+    sc.position(i, 1)
+    sc.buffer(i,1)
+    sc.enable(i, 1)
     update_rate(i)
 
-    sc.filter_dry(i, 0.125);
+    sc.filter_dry(i, 1);
     sc.filter_fc(i, 1200);
     sc.filter_lp(i, 0);
     sc.filter_bp(i, 1.0);
@@ -633,6 +628,7 @@ function key(n,z)
       if settings == false and mounted then
         if reel.rec[trk] == 0 then
           rec(trk,true)
+          mute(trk, false)
         elseif reel.rec[trk] == 1 then
           rec(trk,false)
         end
