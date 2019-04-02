@@ -312,7 +312,7 @@ local function save_clip(txt)
     local c_start = reel.s[trk]
     local c_len = reel.e[trk]
     print("SAVE " .. _path.audio .. txt .. ".aif", c_start, c_len)
-    sc.write(_path.audio..txt..".aif",c_start,c_len)
+    sc.buffer_write_mono(_path.audio..txt..".aif",c_start,c_len, 1)
     reel.name[trk] = txt
   else
     print("save cancel")
@@ -330,7 +330,7 @@ local function save_project(txt)
           local save_path = _path.audio .."reels/" .. name
           reel.paths[i] = save_path
           print("saving "..i .. "clip at " .. save_path, reel.s[i],reel.e[i])
-          sc.write(_path.audio .."reels/" .. name, reel.s[i],reel.e[i])
+          sc.buffer_write_mono(_path.audio .."reels/" .. name, reel.s[i],reel.e[i], 1)
         end
       end
     end
@@ -538,7 +538,7 @@ function init()
   reel.rev = 0
   reel.length = {16, 16, 16, 16}
   reel.q = {1, 1, 1, 1}
-  
+
   audio.level_cut(1)
   audio.level_adc_cut(1)
   audio.level_ext_cut(1)
