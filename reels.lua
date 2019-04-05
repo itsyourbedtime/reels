@@ -538,7 +538,6 @@ function init()
   
   audio.level_cut(1)
   audio.level_adc_cut(1)
-  audio.level_ext_cut(1)
   for i=1,4 do
     sc.level(i,1)
     sc.level_slew_time(1,0.1)
