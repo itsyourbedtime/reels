@@ -31,7 +31,7 @@ local reel_pos_y = 21 -- default
 local c_pos_x = 20
 local c_pos_y = 58
 local bind_vals = {20,48,80,108,0,0,0,0,0,0}
-local clip_len_s = 120
+local clip_len_s = 60
 local rec_vol = 0.5
 local fade = 0.01
 local TR = 4 -- temp
@@ -201,9 +201,9 @@ end
 
 -- not working
 local function clear_track(tr)
-  reel.clip[tr] = 1
-  sc.buffer_clear_region_channel(1, reel.s[tr], clip_len_s * 48000)
-  print("Clear buffer region " .. reel.s[tr] + clip_len_s * 48000)
+  reel.clip[tr] = 1 -- buffer_clear_region(0,60)
+  sc.buffer_clear_region(reel.s[tr], reel.s[i] + (clip_len_s - 2))
+  print("Clear buffer region " .. reel.s[tr], reel.s[i] + (clip_len_s - 2))
 end
 -- PERSISTENCE
 local function init_folders()
@@ -248,6 +248,7 @@ local function load_clip(path)
       reel.length[trk] = len/48000
       reel.e[trk] = reel.s[trk] + len/48000
       reel.loop_end[trk] = reel.length[trk]
+      print("read to " .. reel.s[trk], reel.e[trk])
       sc.buffer_read_mono(path, 0, reel.s[trk], reel.e[trk], 1, 1)
       sc.level(trk, reel.vol[trk])
       mute(trk,false)
@@ -258,7 +259,7 @@ local function load_clip(path)
       set_loop(trk,0,reel.loop_end[trk])
       loop(true)
       sc.position(trk,reel.s[trk])
-      --if not playing then sc.play(trk,0) end
+      if not playing then sc.play(trk,0) end
     else
       print("not a sound file")
     end
