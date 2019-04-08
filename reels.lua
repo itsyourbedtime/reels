@@ -202,7 +202,7 @@ end
 -- not working
 local function clear_track(tr)
   reel.clip[tr] = 1
-  sc.clear_range(reel.s[tr], clip_len_s * 48000)
+  sc.buffer_clear_region_channel(1, reel.s[tr], clip_len_s * 48000)
   print("Clear buffer region " .. reel.s[tr] + clip_len_s * 48000)
 end
 -- PERSISTENCE
@@ -242,23 +242,23 @@ local function load_clip(path)
   if path ~= "cancel" then
     if path:find(".aif") or path:find(".wav") then
       local ch, len = sound_file_inspect(path)
-      sc.buffer_read_mono(path, 0, reel.s[trk], len/48000, 1, 1)
       reel.paths[trk] = path
       reel.clip[trk] = 1
       reel.name[trk] = path:match("[^/]*$")
       reel.length[trk] = len/48000
       reel.e[trk] = reel.s[trk] + len/48000
       reel.loop_end[trk] = reel.length[trk]
+      sc.buffer_read_mono(path, 0, reel.s[trk], reel.e[trk], 1, 1)
       sc.level(trk, reel.vol[trk])
       mute(trk,false)
       mounted = true
-      sc.position(trk,reel.s[trk])
       update_rate(trk)
       update_params_list()
       -- default loop on
       set_loop(trk,0,reel.loop_end[trk])
       loop(true)
-      if not playing then sc.play(trk,0) end
+      sc.position(trk,reel.s[trk])
+      --if not playing then sc.play(trk,0) end
     else
       print("not a sound file")
     end
@@ -544,19 +544,19 @@ function init()
     sc.level_input_cut(1, i, 1.0)
     sc.level_input_cut(2, i, 1.0)
     sc.pan(i, 0.5)
-    sc.play(i, 1)
+    sc.play(i, 0)
     sc.rate(i, 1)
-    reel.s[i] = (i-1) * clip_len_s
+    reel.s[i] = 2 + (i-1) * clip_len_s
     reel.e[i] = reel.s[i] + (clip_len_s - 2)
     sc.loop_start(i, reel.s[i])
     sc.loop_end(i, reel.e[i])
-
+    
     sc.loop(i, 1)
     sc.fade_time(i, 0.1)
     sc.rec(i, 0)
     sc.rec_level(i, 1)
     sc.pre_level(i, 1)
-    sc.position(i, 1)
+    sc.position(i, reel.s[i])
     sc.buffer(i,1)
     sc.enable(i, 1)
     update_rate(i)
@@ -682,7 +682,9 @@ function enc(n,d)
   norns.encoders.set_accel(2,false)
   norns.encoders.set_accel(3,false)
   if n == 1 then
-    trk = util.clamp(trk + d,1,TR)
+    if not recording then 
+      trk = util.clamp(trk + d,1,TR) 
+    end
     if mounted then
       update_params_list()
     end
