@@ -224,6 +224,7 @@ local function new_reel()
   rec_time = 0
   playing = false
   for i=1,TR do
+    play_time[i] = 0
     table.insert(reel.q,1)
     table.insert(reel.play,0)
     table.insert(reel.loop_end,16)
