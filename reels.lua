@@ -535,7 +535,7 @@ function init()
   reel.pos = 0
   reel.speed = 0
   reel.rev = 0
-  reel.length = {16, 16, 16, 16}
+  reel.length = {60, 60, 60, 60}
   reel.q = {1, 1, 1, 1}
 
   audio.level_cut(1)
@@ -682,7 +682,7 @@ function enc(n,d)
   norns.encoders.set_sens(3,1)
   norns.encoders.set_accel(1,false)
   norns.encoders.set_accel(2,false)
-  norns.encoders.set_accel(3,false)
+  norns.encoders.set_accel(3,true)
   if n == 1 then
     if not recording then 
       trk = util.clamp(trk + d,1,TR) 
