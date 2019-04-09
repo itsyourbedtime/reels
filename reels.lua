@@ -227,8 +227,9 @@ local function new_reel()
     play_time[i] = 0
     table.insert(reel.q,1)
     table.insert(reel.play,0)
+    reel.loop_end = {16, 16, 16, 16}
     table.insert(reel.loop_end,16)
-    table.insert(reel.length,120)
+    table.insert(reel.length,60)
     table.insert(reel.clip,0)
     set_loop(i,0,reel.loop_end[i])
     sc.position(i,reel.s[i])
@@ -529,7 +530,7 @@ function init()
   reel.pre_level = 1
   reel.loop = 0
   reel.loop_start = {0, 0, 0, 0}
-  reel.loop_end = {16, 16, 16, 16}
+  reel.loop_end = {69, 60, 60, 60}
   reel.vol = {1, 1, 1, 1}
   reel.clip = {0, 0, 0, 0}
   reel.pos = 0
