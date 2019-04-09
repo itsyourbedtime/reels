@@ -115,8 +115,8 @@ local function play_count()
 end
 
 local function update_params_list()
-  settings_list.entries = {"Tr " .. trk .. (mutes[trk] == false and "  Vol " or " "), "Start", "End", "Quality","--","Loop", "--", "Load clip", "Save clip",  "--", "Clear clip", not mounted and "New reel" or "Clear all", "--", "Save reel", "Load reel", "Warble"}
-  settings_amounts_list.entries = {mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or "" .. util.round(reel.vol[trk]*100),util.round(reel.loop_start[trk],0.1),util.round(reel.loop_end[trk],0.1),reel.q[trk] ,"",reel.loop == 1 and "On" or "Off","","","","","","","","","", warble_state == true and "On" or "Off"}
+  settings_list.entries = {"Tr " .. trk .. (mutes[trk] == false and "  Vol " or " "), "Start", "End", "Quality","--","Length", "--", "Load clip", "Save clip",  "--", "Clear clip", not mounted and "New reel" or "Clear all", "--", "Save reel", "Load reel", "Warble"}
+  settings_amounts_list.entries = {mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or "" .. util.round(reel.vol[trk]*100),util.round(reel.loop_start[trk],0.1),util.round(reel.loop_end[trk],0.1),reel.q[trk] ,"",util.round(reel.length[trk],0.1),"","","","","","","","","", warble_state == true and "On" or "Off"}
 end
 -- REEL
 local function set_loop(tr, st, en)
@@ -650,8 +650,7 @@ function key(n,z)
         elseif settings_list.index == 2 then
           if not mounted then new_reel() end
         elseif settings_list.index == 6 then
-          reel.loop = reel.loop == 1 and 0 or 1
-          loop(reel.loop == 1 and true or false)
+          reel.length[trk] = reel.length[trk] > reel.loop_end[trk] and reel.loop_end[trk] or 60
         elseif settings_list.index == 8 then
           filesel = true
           fileselect.enter(_path.audio, load_clip)
@@ -733,13 +732,13 @@ function enc(n,d)
         reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
         update_rate(trk) -- ?
       elseif settings_list.index == 6 then
-        reel.loop = util.clamp(reel.loop + d, 0,1)
-        loop(reel.loop)
+        reel.length[trk] = util.clamp(reel.length[trk] + d, 16,60)
       end
       update_params_list()
     end
   end
 end
+
 
 function redraw()
   if not filesel then
