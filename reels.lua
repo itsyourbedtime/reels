@@ -35,6 +35,7 @@ local clip_len_s = 60
 local rec_vol = 0.5
 local fade = 0.01
 local TR = 4 -- temp
+local SLEW_AMOUNT = 0.03
 local WARBLE_AMOUNT = 10
 local trk = 1
 local blink = false
@@ -201,9 +202,9 @@ end
 
 -- not working
 local function clear_track(tr)
-  reel.clip[tr] = 1 -- buffer_clear_region(0,60)
-  sc.buffer_clear_region(reel.s[tr], reel.s[i] + (clip_len_s - 2))
-  print("Clear buffer region " .. reel.s[tr], reel.s[i] + (clip_len_s - 2))
+  reel.clip[tr] = 1
+  sc.buffer_clear_region(reel.s[tr], reel.length[tr])
+  print("Clear buffer region " .. reel.s[tr], reel.length[tr])
 end
 -- PERSISTENCE
 local function init_folders()
@@ -230,8 +231,6 @@ local function new_reel()
     table.insert(reel.clip,0)
     set_loop(i,0,reel.loop_end[i])
     sc.position(i,reel.s[i])
-    --sc.reset(i)
-    --sc.stop(i)
   end
   mounted = true
   loop(true)
@@ -250,6 +249,9 @@ local function load_clip(path)
       reel.loop_end[trk] = reel.length[trk]
       print("read to " .. reel.s[trk], reel.e[trk])
       sc.buffer_read_mono(path, 0, reel.s[trk], reel.e[trk], 1, 1)
+      if not playing then sc.play(trk,0) end
+      play_time[trk] = 0
+      sc.position(trk,reel.s[trk])
       sc.level(trk, reel.vol[trk])
       mute(trk,false)
       mounted = true
@@ -258,8 +260,6 @@ local function load_clip(path)
       -- default loop on
       set_loop(trk,0,reel.loop_end[trk])
       loop(true)
-      sc.position(trk,reel.s[trk])
-      if not playing then sc.play(trk,0) end
     else
       print("not a sound file")
     end
@@ -541,7 +541,7 @@ function init()
   audio.level_adc_cut(1)
   for i=1,4 do
     sc.level(i,1)
-    sc.level_slew_time(1,0.1)
+    sc.level_slew_time(1,SLEW_AMOUNT)
     sc.level_input_cut(1, i, 1.0)
     sc.level_input_cut(2, i, 1.0)
     sc.pan(i, 0.5)
@@ -563,10 +563,10 @@ function init()
     update_rate(i)
 
     sc.filter_dry(i, 1);
-    sc.filter_fc(i, 1200);
+    sc.filter_fc(i, 0);
     sc.filter_lp(i, 0);
-    sc.filter_bp(i, 1.0);
-    sc.filter_rq(i, 2.0);
+    sc.filter_bp(i, 0);
+    sc.filter_rq(i, 0);
   end
 
   -- reel graphics
