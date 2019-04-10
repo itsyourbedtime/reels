@@ -246,11 +246,15 @@ local function load_clip(path)
       reel.paths[trk] = path
       reel.clip[trk] = 1
       reel.name[trk] = path:match("[^/]*$")
-      reel.length[trk] = len/48000
-      reel.e[trk] = reel.s[trk] + len/48000
+      if len/48000 <= 60 then 
+	reel.length[trk] = len/48000
+      else
+	reel.length[trk] = 59.9
+      end
+      reel.e[trk] = reel.s[trk] + reel.length[trk]
       reel.loop_end[trk] = reel.length[trk]
       print("read to " .. reel.s[trk], reel.e[trk])
-      sc.buffer_read_mono(path, 0, reel.s[trk], reel.e[trk], 1, 1)
+      sc.buffer_read_mono(path, 0, reel.s[trk], reel.length[trk], 1, 1)
       if not playing then sc.play(trk,0) end
       play_time[trk] = 0
       sc.position(trk,reel.s[trk])
@@ -682,7 +686,7 @@ function enc(n,d)
   norns.encoders.set_sens(2,3)
   norns.encoders.set_sens(3,1)
   norns.encoders.set_accel(1,false)
-  norns.encoders.set_accel(2,false)
+  norns.encoders.set_accel(2,true)
   norns.encoders.set_accel(3,true)
   if n == 1 then
     if not recording then 
