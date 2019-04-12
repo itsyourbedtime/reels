@@ -1,5 +1,6 @@
 --
--- reel to reel tape player
+-- reel to reel tape player 
+-- @its_your_bedtime
 --
 -- hold btn 1 for settings
 -- btn 2 play / pause
@@ -9,7 +10,6 @@
 -- enc 2 - change speed
 -- enc 3 - overdub level
 
---sc.name = "sc"
 local sc = require "softcut"
 local UI = require "ui"
 local tab = require 'tabutil'
@@ -32,7 +32,7 @@ local c_pos_x = 20
 local c_pos_y = 58
 local bind_vals = {20,48,80,108,0,0,0,0,0,0}
 local clip_len_s = 60
-local rec_vol = 0.5
+local rec_vol = 1
 local fade = 0.01
 local TR = 4 -- temp
 local SLEW_AMOUNT = 0.03
@@ -46,7 +46,6 @@ local reel = {}
 local rec_time = 0
 local play_time = {0,0,0,0}
 local mutes = {true,true,true,true}
-
 
 local function update_rate(i)
   local n = math.pow(2,reel.speed)
@@ -62,21 +61,6 @@ local function warble(state)
       n[i] = (math.pow(2,reel.speed) / reel.q[i])
       sc.rate(i, n[i] + l_reel[i].position / WARBLE_AMOUNT)
       update_rate(i)
-    end
-  end
-end
-
-local function count()
-  if reel.rec == 1 then
-    rec_time = rec_time + (0.01 / (reel.q[trk] - math.abs(speed)))
-    if reel.loop == 1 then
-      if rec_time >= reel.loop_end[trk] then
-        rec_time = 0
-      end
-    elseif reel.loop == 0 then
-      if rec_time >= reel.length[trk] then
-        rec_time = 0
-      end
     end
   end
 end
@@ -154,19 +138,18 @@ local function rec(tr, state)
     end
     recording = true
     if not reel.name[tr]:find("*") then
+      rec_start = play_time[tr]
       reel.name[tr] = "*" .. reel.name[tr]
+      -- sync pos with graphics on initial recording
+      sc.position(tr, rec_start)
     end
     reel.rec[tr] = 1
     sc.rec(tr,1)
-    --sc.pre_level(tr,rec_vol)
-    sc.rec_level(tr,rec_vol)
-    counter:start()
   elseif state == false then -- stop rec
     recording = false
     reel.rec[tr] = 0
-    sc.rec(tr,0)
+    sc.rec_level(tr,0)
     reel.clip[tr] = 1
-    counter:stop()
     update_params_list()
   end
 end
@@ -200,7 +183,6 @@ local function play(state)
   end
 end
 
--- not working
 local function clear_track(tr)
   reel.clip[tr] = 1
   sc.buffer_clear_region(reel.s[tr], reel.length[tr])
@@ -368,7 +350,7 @@ local function animation()
     end
     if tape_tension > 20 and plhead_lvl < 32  then
       tape_tension = tape_tension - 1
-      plhead_slvl = util.clamp(plhead_slvl + 1,0,5)
+      plhead_slvl = util.clamp(plhead_slvl + 1,0,2)
     end
   elseif playing == false then
     if plhead_lvl < 35 then
@@ -542,7 +524,6 @@ function init()
   reel.rev = 0
   reel.length = {60, 60, 60, 60}
   reel.q = {1, 1, 1, 1}
-
   audio.level_cut(1)
   audio.level_adc_cut(1)
   for i=1,4 do
@@ -573,8 +554,10 @@ function init()
     sc.filter_lp(i, 0);
     sc.filter_bp(i, 0);
     sc.filter_rq(i, 0);
+    
+    params:add_control(i.."pan", i.." pan", controlspec.new(0, 1, 'lin', 0, 0.5, ""))
+    params:set_action(i.."pan", function(x) softcut.pan(i,x) end)
   end
-
   -- reel graphics
   for i=1,6 do
     r_reel[i].orbit = math.fmod(i,2)~=0 and 6 or 15
@@ -597,8 +580,6 @@ function init()
   settings_amounts_list.text_align = "right"
   settings_amounts_list.active = false
   --
-  counter = metro.init{event = count, time = 0.01,count =  -1}
-  counter:start()
   play_counter = metro.init{event = function(stage) if playing == true then play_count() end end,time = 0.01, count = -1}
   blink_metro = metro.init{event = function(stage) blink = not blink end, time = 1 / 2}
   blink_metro:start()
@@ -716,6 +697,7 @@ function enc(n,d)
   elseif n == 3 then
     if not settings then
       rec_vol = util.clamp(rec_vol + d / 100, 0,1)
+      sc.rec_level(trk,rec_vol)
     elseif settings then
       if settings_list.index == 1 and mutes[trk] == false then
         reel.vol[trk] = util.clamp(reel.vol[trk] + d / 100, 0,1)
@@ -746,6 +728,7 @@ function enc(n,d)
 end
 
 function redraw()
+  screen.aa(0)
   if not filesel then
     screen.clear()
     draw_reel(reel_pos_x,reel_pos_y)
