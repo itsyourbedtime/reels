@@ -229,12 +229,12 @@ local function load_clip(path)
       reel.clip[trk] = 1
       reel.name[trk] = path:match("[^/]*$")
       if len/48000 <= 60 then 
-	reel.length[trk] = len/48000
+	      reel.length[trk] = len/48000
       else
-	reel.length[trk] = 59.9
+	      reel.length[trk] = 59.9
       end
       reel.e[trk] = reel.s[trk] + reel.length[trk]
-      reel.loop_end[trk] = reel.length[trk]
+      if not path:find(reel.proj) then reel.loop_end[trk] = reel.length[trk] end
       print("read to " .. reel.s[trk], reel.e[trk])
       sc.buffer_read_mono(path, 0, reel.s[trk], reel.length[trk], 1, 1)
       if not playing then sc.play(trk,0) end
