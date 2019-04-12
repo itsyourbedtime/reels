@@ -281,7 +281,6 @@ local function load_mix(path)
           sc.position(i,reel.s[i] + reel.loop_start[i])
           update_rate(i)
           sc.play(i,0)
-          update_params_list()
         end
       end
     else
@@ -291,6 +290,7 @@ local function load_mix(path)
   trk = 1
   settings = true
   filesel = false
+  update_params_list()
 end
 
 local function save_clip(txt)
