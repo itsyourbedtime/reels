@@ -78,7 +78,6 @@ local function play_count()
             play_time[i] = 0
             for i=1,TR do
               sc.position(i,reel.s[i])
-              --sc.reset(i)
               sc.play(i,0)
             end
           end
@@ -185,7 +184,18 @@ end
 
 local function clear_track(tr)
   reel.clip[tr] = 1
-  sc.buffer_clear_region(reel.s[tr], reel.length[tr])
+  if reel.name[tr]:find("*") then
+    reel.name[tr] = string.gsub(reel.name[tr], "*", "")
+  end
+  play_time[tr] = 0
+  reel.q[tr] = 1
+  reel.play[tr] = 0
+  reel.loop_end[tr] = 16
+  reel.length[tr] = 60
+  reel.clip[tr] = 0
+  set_loop(i,0,reel.loop_end[tr])
+  sc.buffer_clear_region_channel(1, reel.s[tr], reel.length[tr])
+  sc.position(i,reel.s[tr])
   print("Clear buffer region " .. reel.s[tr], reel.length[tr])
 end
 -- PERSISTENCE
@@ -297,8 +307,8 @@ local function save_clip(txt)
   if txt then
     local c_start = reel.s[trk]
     local c_len = reel.e[trk]
-    print("SAVE " .. _path.audio .. txt .. ".aif", c_start, c_len)
-    sc.buffer_write_mono(_path.audio..txt..".aif",c_start,c_len, 1)
+    print("SAVE " .. _path.audio .. "reels/".. txt .. ".aif", c_start, c_len)
+    sc.buffer_write_mono(_path.audio .. "reels/"..txt..".aif",c_start,c_len, 1)
     reel.name[trk] = txt
   else
     print("save cancel")
@@ -383,6 +393,8 @@ local function draw_reel(x,y)
     l = math.abs(l) + 4
   elseif l >= 4 then
     l = 4
+  elseif l == 0 then
+    l = reel.rev == 1 and 5 or 1
   end
   screen.level(1)
   screen.line_width(1.9)
@@ -667,8 +679,8 @@ function enc(n,d)
   norns.encoders.set_sens(2,3)
   norns.encoders.set_sens(3,1)
   norns.encoders.set_accel(1,false)
-  norns.encoders.set_accel(2,true)
-  norns.encoders.set_accel(3,true)
+  norns.encoders.set_accel(2,settings and false or true)
+  norns.encoders.set_accel(3,(settings and (settings_list.index == 2 or settings_list.index == 3)) and true or false)
   if n == 1 then
     if not recording then 
       trk = util.clamp(trk + d,1,TR) 
