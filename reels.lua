@@ -193,9 +193,9 @@ local function clear_track(tr)
   reel.loop_end[tr] = 16
   reel.length[tr] = 60
   reel.clip[tr] = 0
-  set_loop(i,0,reel.loop_end[tr])
-  sc.buffer_clear_region_channel(1, reel.s[tr], reel.length[tr])
-  sc.position(i,reel.s[tr])
+  set_loop(tr,reel.s[tr],reel.loop_end[tr])
+  sc.buffer_clear_region(reel.s[tr], reel.length[tr])
+  sc.position(tr,reel.s[tr])
   print("Clear buffer region " .. reel.s[tr], reel.length[tr])
 end
 -- PERSISTENCE
