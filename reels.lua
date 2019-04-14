@@ -44,8 +44,10 @@ local l_reel = {{},{},{},{},{},{}}
 local speed_disp = {">",">>",">>>",">>>>","<","<<","<<<","<<<<"}
 local reel = {}
 local rec_time = 0
+local rec_start
 local play_time = {0,0,0,0}
 local mutes = {true,true,true,true}
+
 
 local function update_rate(i)
   local n = math.pow(2,reel.speed)
@@ -69,37 +71,25 @@ local function play_count()
   for i=1,TR do
     if reel.rev == 0 then
       play_time[i] = play_time[i] + (0.01 / (reel.q[i] - math.abs(speed / 2 )))
-      if play_time[i] >= (reel.loop == 1 and reel.loop_end[i] or reel.length[i]) then
-        if reel.loop == 1 then
-          play_time[i] = reel.loop_start[i]
-        elseif reel.loop == 0 then
-          if play_time[i] > reel.length[i] then
-            playing = false
-            play_time[i] = 0
-            for i=1,TR do
-              sc.position(i,reel.s[i])
-              sc.play(i,0)
-            end
-          end
-        end
+      if play_time[i] >= reel.loop_end[i] then
+        play_time[i] = reel.loop_start[i]
       end
     elseif reel.rev == 1 then
       play_time[i] = play_time[i] - (0.01 / (reel.q[i] - math.abs(speed / 2)))
-      if play_time[i] <= (reel.loop == 1 and reel.loop_start[i] or 0) then
-        if reel.loop == 1 then
-          play_time[i] = reel.loop_end[i]
-        else
-          play_time[i] = reel.length[i]
-        end
+      if play_time[i] <= reel.loop_start[i] == 1 then -- fix wtf(?)
+        play_time[i] = reel.loop_end[i]
       end
     end
+  end
+  if recording then
+    rec_time = play_time[trk]
   end
   warble(warble_state)
 end
 
 local function update_params_list()
-  settings_list.entries = {"Tr " .. trk .. (mutes[trk] == false and "  Vol " or " "), "Start", "End", "Quality","--","Loop", "--", "Load clip", "Save clip",  "--", "Clear clip", not mounted and "New reel" or "Clear all", "--", "Save reel", "Load reel", "Warble"}
-  settings_amounts_list.entries = {mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or "" .. util.round(reel.vol[trk]*100),util.round(reel.loop_start[trk],0.1),util.round(reel.loop_end[trk],0.1),reel.q[trk] ,"",reel.loop == 1 and "On" or "Off","","","","","","","","","", warble_state == true and "On" or "Off"}
+  settings_list.entries = {"Tr " .. trk .. (mutes[trk] == false and "  Vol " or " "), "Start", "End", "Quality","--","-", "--", "Load clip", "Save clip",  "--", "Clear clip", not mounted and "New reel" or "Clear all", "--", "Save reel", "Load reel", "Warble"}
+  settings_amounts_list.entries = {mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or "" .. util.round(reel.vol[trk]*100),util.round(reel.loop_start[trk],0.1),util.round(reel.loop_end[trk],0.1),reel.q[trk] ,"","-","","","","","","","","","", warble_state == true and "On" or "Off"}
 end
 -- REEL
 local function set_loop(tr, st, en)
@@ -113,34 +103,17 @@ local function set_loop(tr, st, en)
   end
 end
 
-local function loop(state)
-  if state == true then
-    reel.loop = 1
-    for i=1,TR do
-      set_loop(i,reel.loop_start[i],reel.loop_end[i])
-      sc.loop(i,1)
-    end
-  elseif state == false then
-    reel.loop = 0
-    for i=1,TR do
-      set_loop(i,0,reel.loop_end[i]) --?? lenght
-      sc.loop(i,0)
-      play_time[i] = 0
-    end
-  end
-end
-
 local function rec(tr, state)
   if state == true then -- start rec
-    if rec_time ~= 0 then
-      rec_time = 0
-    end
+    --if rec_time ~= 0 then
+      --rec_time = 0
+    --end
     recording = true
     if not reel.name[tr]:find("*") then
       rec_start = play_time[tr]
       reel.name[tr] = "*" .. reel.name[tr]
       -- sync pos with graphics on initial recording
-      sc.position(tr, rec_start)
+      sc.position(tr, reel.s[tr] + rec_start)
     end
     reel.rec[tr] = 1
     sc.rec(tr,1)
@@ -148,6 +121,11 @@ local function rec(tr, state)
     recording = false
     reel.rec[tr] = 0
     sc.rec_level(tr,0)
+    if reel.clip[tr] == 0 then
+      reel.loop_start[tr] = rec_start - 0.1
+      reel.loop_end[tr] = rec_time 
+      set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
+    end
     reel.clip[tr] = 1
     update_params_list()
   end
@@ -190,7 +168,7 @@ local function clear_track(tr)
   play_time[tr] = 0
   reel.q[tr] = 1
   reel.play[tr] = 0
-  reel.loop_end[tr] = 16
+  reel.loop_end[tr] = 60
   reel.length[tr] = 60
   reel.clip[tr] = 0
   set_loop(tr,reel.s[tr],reel.loop_end[tr])
@@ -219,7 +197,7 @@ local function new_reel()
     play_time[i] = 0
     table.insert(reel.q,1)
     table.insert(reel.play,0)
-    reel.loop_end = {16, 16, 16, 16}
+    reel.loop_end = {60, 60, 60, 60}
     table.insert(reel.loop_end,16)
     table.insert(reel.length,60)
     table.insert(reel.clip,0)
@@ -227,7 +205,6 @@ local function new_reel()
     sc.position(i,reel.s[i])
   end
   mounted = true
-  loop(true)
   update_params_list()
 end
 
@@ -257,7 +234,6 @@ local function load_clip(path)
       update_params_list()
       -- default loop on
       set_loop(trk,0,reel.loop_end[trk])
-      loop(true)
     else
       print("not a sound file")
     end
@@ -440,12 +416,10 @@ local function draw_reel(x,y)
   screen.stroke()
   -- tape
   if mounted then
-    if reel.loop == 1 then
-      screen.level(6)
-      screen.move(x,y-17)
-      screen.line(x+65,y-12)
-      screen.stroke()
-    end
+    screen.level(6)
+    screen.move(x,y-17)
+    screen.line(x+65,y-12)
+    screen.stroke()
     screen.level(6)
     screen.circle(x,y,18)
     screen.stroke()
@@ -481,16 +455,14 @@ local function draw_bars(x,y)
     screen.level(mutes[i] and 1 or reel.rec[i] == 1 and 9 or 3)
     screen.rect((x * i *2) - 24,y,26,3)
     screen.stroke()
-    if reel.loop == 1 then
-      screen.level(mutes[i] and 1 or reel.rec[i] == 1 and 9 or 3)
-      screen.rect((x * i *2) - 24,y,25,3)
-      screen.fill()
-      screen.stroke()
-      screen.level(0)
-      -- display loop start / end points
-      screen.rect(((x * i *2) - 24) + (reel.loop_start[i] / reel.length[i] * 25), 61, (reel.loop_end[i] / reel.length[i] * 25) - (reel.loop_start[i] / reel.length[i] * 25), 2)
-      screen.fill()
-      end
+    screen.level(mutes[i] and 1 or reel.rec[i] == 1 and 9 or 3)
+    screen.rect((x * i *2) - 24,y,25,3)
+    screen.fill()
+    screen.stroke()
+    screen.level(0)
+    -- display loop start / end points
+    screen.rect(((x * i *2) - 24) + (reel.loop_start[i] / reel.length[i] * 25), 61, (reel.loop_end[i] / reel.length[i] * 25) - (reel.loop_start[i] / reel.length[i] * 25), 2)
+    screen.fill()
     screen.level(15)
     screen.move(((x * i *2) - 24) + (((play_time[i]) / (reel.length[i]) * 25)), 61)
     screen.line_rel(0,2)
@@ -526,9 +498,8 @@ function init()
   reel.rec = {0, 0, 0, 0}
   reel.rec_level = 1
   reel.pre_level = 1
-  reel.loop = 0
   reel.loop_start = {0, 0, 0, 0}
-  reel.loop_end = {69, 60, 60, 60}
+  reel.loop_end = {60, 60, 60, 60}
   reel.vol = {1, 1, 1, 1}
   reel.clip = {0, 0, 0, 0}
   reel.pos = 0
@@ -598,7 +569,6 @@ function init()
   reel_redraw = metro.init{event = function(stage) redraw() animation() end, time = 1 / 60}
   reel_redraw:start()
   --
-  loop(true)
 end
 -- HW
 function key(n,z)
@@ -646,9 +616,6 @@ function key(n,z)
           end
         elseif settings_list.index == 2 then
           if not mounted then new_reel() end
-        elseif settings_list.index == 6 then
-          reel.loop = reel.loop == 1 and 0 or 1
-          loop(reel.loop == 1 and true or false)
         elseif settings_list.index == 8 then
           filesel = true
           fileselect.enter(_path.audio, load_clip)
@@ -730,9 +697,6 @@ function enc(n,d)
       elseif settings_list.index == 4 then
         reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
         update_rate(trk) -- ?
-      elseif settings_list.index == 6 then
-        reel.loop = util.clamp(reel.loop + d, 0,1)
-        loop(reel.loop)
       end
       update_params_list()
     end
