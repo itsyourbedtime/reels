@@ -168,14 +168,12 @@ local function clear_track(tr)
   if reel.name[tr]:find("*") then
     reel.name[tr] = string.gsub(reel.name[tr], "*", "")
   end
-  play_time[tr] = 0
   reel.q[tr] = 1
-  reel.play[tr] = 0
   reel.loop_start[tr] = 0
   reel.loop_end[tr] = 60
   reel.length[tr] = 60
   reel.clip[tr] = 0
-  set_loop(tr,reel.s[tr],reel.loop_end[tr])
+  set_loop(tr,0,reel.loop_end[tr])
   sc.buffer_clear_region(reel.s[tr], reel.length[tr])
   sc.position(tr,reel.s[tr])
   print("Clear buffer region " .. reel.s[tr], reel.length[tr])
