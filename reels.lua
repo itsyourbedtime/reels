@@ -105,9 +105,6 @@ end
 
 local function rec(tr, state)
   if state == true then -- start rec
-    --if rec_time ~= 0 then
-      --rec_time = 0
-    --end
     recording = true
     if not reel.name[tr]:find("*") then
       rec_start = play_time[tr]
@@ -120,15 +117,15 @@ local function rec(tr, state)
   elseif state == false then -- stop rec
     recording = false
     reel.rec[tr] = 0
-    sc.rec_level(tr,0)
+    sc.rec(tr,0)
     if reel.clip[tr] == 0 then
       if reel.rev == 0 then
-        reel.loop_start[tr] = rec_start - 0.1
+        reel.loop_start[tr] = rec_start -- 0.1
         reel.loop_end[tr] = rec_time 
         set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
       elseif reel.rev == 1 then
         reel.loop_start[tr] = rec_time
-        reel.loop_end[tr] = rec_start - 0.1
+        reel.loop_end[tr] = rec_start -- 0.1
         set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
       end
     end
@@ -174,6 +171,7 @@ local function clear_track(tr)
   play_time[tr] = 0
   reel.q[tr] = 1
   reel.play[tr] = 0
+  reel.loop_start[tr] = 0
   reel.loop_end[tr] = 60
   reel.length[tr] = 60
   reel.clip[tr] = 0
