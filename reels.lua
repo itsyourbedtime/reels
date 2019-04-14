@@ -107,28 +107,28 @@ local function rec(tr, state)
   if state == true then -- start rec
     recording = true
     if not reel.name[tr]:find("*") then
-      rec_start = play_time[tr]
       reel.name[tr] = "*" .. reel.name[tr]
-      -- sync pos with graphics on initial recording
-      sc.position(tr, reel.s[tr] + rec_start)
     end
+    -- sync pos with graphics
+    rec_start = play_time[tr]
+    sc.position(tr, reel.s[tr] + rec_start)
     reel.rec[tr] = 1
     sc.rec(tr,1)
   elseif state == false then -- stop rec
     recording = false
     reel.rec[tr] = 0
     sc.rec(tr,0)
-    if reel.clip[tr] == 0 then
-      if reel.rev == 0 then
-        reel.loop_start[tr] = rec_start -- 0.1
-        reel.loop_end[tr] = rec_time 
-        set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
-      elseif reel.rev == 1 then
-        reel.loop_start[tr] = rec_time
-        reel.loop_end[tr] = rec_start -- 0.1
-        set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
-      end
-    end
+     if reel.clip[tr] == 0 then
+       if reel.rev == 0 then
+         reel.loop_start[tr] = rec_start
+         reel.loop_end[tr] = rec_time
+         set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
+       elseif reel.rev == 1 then
+         reel.loop_start[tr] = rec_time
+         reel.loop_end[tr] = rec_start
+         set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
+       end
+     end    
     reel.clip[tr] = 1
     update_params_list()
   end
