@@ -34,11 +34,11 @@ local bind_vals = {20,48,80,108,0,0,0,0,0,0}
 local clip_len_s = 60
 local rec_vol = 1
 local fade = 0.01
-local TR = 4 -- temp
+local TR = 4
 local SLEW_AMOUNT = 0.03
 local WARBLE_AMOUNT = 10
 local trk = 1
-local blink = false
+local rec_blink = false
 local r_reel = {{},{},{},{},{},{}}
 local l_reel = {{},{},{},{},{},{}}
 local speed_disp = {">",">>",">>>",">>>>","<","<<","<<<","<<<<"}
@@ -47,8 +47,8 @@ local rec_time = 0
 local rec_start
 local play_time = {0,0,0,0}
 local mutes = {true,true,true,true}
-
-
+local loop_pos = {1, 1, 1, 1}
+-- 
 local function update_rate(i)
   local n = math.pow(2,reel.speed)
   reel.speed = math.abs(speed)
@@ -87,12 +87,52 @@ local function play_count()
   warble(warble_state)
 end
 
-local function update_params_list()
-  settings_list.entries = {"Tr " .. trk .. (mutes[trk] == false and "  Vol " or " "), "Start", "End", "Quality","--","-", "--", "Load clip", "Save clip",  "--", "Clear clip", not mounted and "New reel" or "Clear all", "--", "Save reel", "Load reel", "Warble"}
-  settings_amounts_list.entries = {mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or "" .. util.round(reel.vol[trk]*100),util.round(reel.loop_start[trk],0.1),util.round(reel.loop_end[trk],0.1),reel.q[trk] ,"","-","","","","","","","","","", warble_state == true and "On" or "Off"}
+local function menu_loop_pos(tr, pos)
+  local init_string = "           "
+  return ("%s%s%s"):format(init_string:sub(1,pos-1), "-", init_string:sub(pos+1))
 end
--- REEL
+
+local function update_params_list()
+  settings_list.entries = {
+    "TR " .. trk .. (mutes[trk] == false and "  Vol " or " "),
+    "Quality",
+    "<" .. menu_loop_pos(trk, loop_pos[trk]) .. ">",
+    "Start", 
+    "End", 
+    "--", 
+    "Load clip", 
+    "Save clip",  
+    "--", 
+    "Clear clip", 
+    not mounted and "New reel" or "Clear all", 
+    "--", 
+    "Save reel", 
+    "Load reel",
+    "--",
+    "Warble"
+  }
+  settings_amounts_list.entries = {
+    mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or " " .. util.round(reel.vol[trk]*100),
+    reel.q[trk],
+    "",
+    util.round(reel.loop_start[trk],0.1),
+    util.round(reel.loop_end[trk],0.1),
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    warble_state == true and "On" or "Off"
+  }
+end
+
 local function set_loop(tr, st, en)
+  loop_pos[tr] = util.clamp(math.ceil((st)  / 100 * 18),1,11)
   st = reel.s[tr] + st
   en = reel.s[tr] + en
   sc.loop_start(tr,st)
@@ -104,7 +144,7 @@ local function set_loop(tr, st, en)
 end
 
 local function rec(tr, state)
-  if state == true then -- start rec
+  if state == true then
     recording = true
     if not reel.name[tr]:find("*") then
       reel.name[tr] = "*" .. reel.name[tr]
@@ -114,18 +154,18 @@ local function rec(tr, state)
     sc.position(tr, reel.s[tr] + rec_start)
     reel.rec[tr] = 1
     sc.rec(tr,1)
-  elseif state == false then -- stop rec
+  elseif state == false then
     recording = false
     reel.rec[tr] = 0
     sc.rec(tr,0)
      if reel.clip[tr] == 0 then
        if reel.rev == 0 then
-         reel.loop_start[tr] = rec_start
-         reel.loop_end[tr] = rec_time
+         reel.loop_start[tr] = util.clamp(rec_start,0,60)
+         reel.loop_end[tr] = util.clamp(rec_time,0,60)
          set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
        elseif reel.rev == 1 then
-         reel.loop_start[tr] = rec_time
-         reel.loop_end[tr] = rec_start
+         reel.loop_start[tr] = util.clamp(rec_time,0,60)
+         reel.loop_end[tr] = util.clamp(rec_start,0,60)
          set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
        end
      end    
@@ -178,7 +218,7 @@ local function clear_track(tr)
   sc.position(tr,reel.s[tr])
   print("Clear buffer region " .. reel.s[tr], reel.length[tr])
 end
--- PERSISTENCE
+
 local function init_folders()
   if util.file_exists(_path.data .. "reels/") == false then
     util.make_dir(_path.data .. "reels/")
@@ -200,7 +240,8 @@ local function new_reel()
     table.insert(reel.q,1)
     table.insert(reel.play,0)
     reel.loop_end = {60, 60, 60, 60}
-    table.insert(reel.loop_end,16)
+    table.insert(reel.loop_start, 0)
+    table.insert(reel.loop_end,60)
     table.insert(reel.length,60)
     table.insert(reel.clip,0)
     set_loop(i,0,reel.loop_end[i])
@@ -314,7 +355,7 @@ local function save_project(txt)
   end
   filesel = false
 end
--- UI
+
 local function update_reel()
   for i=1,6 do
     l_reel[i].velocity = util.linlin(0, 1, 0.01, (speed/1.9)/(reel.q[1]/2), 0.15)
@@ -566,13 +607,13 @@ function init()
   settings_amounts_list.active = false
   --
   play_counter = metro.init{event = function(stage) if playing == true then play_count() end end,time = 0.01, count = -1}
-  blink_metro = metro.init{event = function(stage) blink = not blink end, time = 1 / 2}
+  blink_metro = metro.init{event = function(stage) rec_blink = not rec_blink end, time = 1 / 2}
   blink_metro:start()
   reel_redraw = metro.init{event = function(stage) redraw() animation() end, time = 1 / 60}
   reel_redraw:start()
   --
 end
--- HW
+
 function key(n,z)
   if z == 1 then
     if n == 1 then
@@ -618,20 +659,20 @@ function key(n,z)
           end
         elseif settings_list.index == 2 then
           if not mounted then new_reel() end
-        elseif settings_list.index == 8 then
+        elseif settings_list.index == 7 then
           filesel = true
           fileselect.enter(_path.audio, load_clip)
-        elseif settings_list.index == 9 then
+        elseif settings_list.index == 8 then
           filesel = true
           textentry.enter(save_clip, reel.name[trk] == "-*" and "reel-" .. (math.random(9000)+1000) or (reel.name[trk]:find("*") and reel.name[trk]:match("[^.]*")):sub(2,-1))
-        elseif settings_list.index == 11 then
+        elseif settings_list.index == 10 then
           clear_track(trk)
-        elseif settings_list.index == 12 then
+        elseif settings_list.index == 11 then
           new_reel()
-        elseif settings_list.index == 14 then
+        elseif settings_list.index == 13 then
           filesel = true
           textentry.enter(save_project, reel.proj)
-        elseif settings_list.index == 15 then
+        elseif settings_list.index == 14 then
           filesel = true
             fileselect.enter(_path.data.."reels/", load_mix)
         elseif settings_list.index == 16 then
@@ -649,7 +690,7 @@ function enc(n,d)
   norns.encoders.set_sens(3,1)
   norns.encoders.set_accel(1,false)
   norns.encoders.set_accel(2,settings and false or true)
-  norns.encoders.set_accel(3,(settings and (settings_list.index == 2 or settings_list.index == 3)) and true or false)
+  norns.encoders.set_accel(3,(settings and (settings_list.index == 3 or settings_list.index == 4 or settings_list.index == 5)) and true or false)
   if n == 1 then
     if not recording then 
       trk = util.clamp(trk + d,1,TR) 
@@ -679,26 +720,28 @@ function enc(n,d)
     if not settings then
       rec_vol = util.clamp(rec_vol + d / 100, 0,1)
       sc.rec_level(trk,rec_vol)
-    elseif settings then
+    elseif (settings and mounted) then
       if settings_list.index == 1 and mutes[trk] == false then
         reel.vol[trk] = util.clamp(reel.vol[trk] + d / 100, 0,1)
         sc.level(trk,reel.vol[trk])
         update_params_list()
       elseif settings_list.index == 2 then
-        reel.loop_start[trk] = util.clamp(reel.loop_start[trk] + d / 10,0,reel.length[trk])
-        if reel.loop_start[trk] <= reel.loop_end[trk] then
-          reel.loop_end[trk] = util.clamp(reel.loop_end[trk] + d / 10,0,util.round(reel.length[trk],0.1))
-        end
-        set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
+        reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
+        update_rate(trk)
       elseif settings_list.index == 3 then
-        reel.loop_end[trk] = util.clamp(reel.loop_end[trk] + d / 10,0,util.round(reel.length[trk],0.1))
-        if reel.loop_end[trk] <= reel.loop_start[trk] then
-          reel.loop_start[trk] = util.clamp(reel.loop_start[trk] + d / 10,0,reel.length[trk])
-        end
+        local loop_len = reel.loop_end[trk] - reel.loop_start[trk]
+        reel.loop_start[trk] = util.clamp(reel.loop_start[trk] + d / 10,0,59)
+        reel.loop_end[trk] = util.clamp(reel.loop_start[trk] + loop_len,reel.loop_start[trk],reel.length[trk])
         set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
       elseif settings_list.index == 4 then
-        reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
-        update_rate(trk) -- ?
+        reel.loop_start[trk] = util.clamp(reel.loop_start[trk] + d / 10,0,reel.loop_end[trk])
+        set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
+      elseif settings_list.index == 5 then
+        reel.loop_end[trk] = util.clamp(reel.loop_end[trk] + d / 10,reel.loop_start[trk],util.round(reel.length[trk],0.1))
+        set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
+      elseif settings_list.index == 16 then
+        reel.loop_end[trk] = util.clamp(reel.loop_end[trk] + d / 10,reel.loop_start[trk],util.round(reel.length[trk],0.1))
+        set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
       end
       update_params_list()
     end
@@ -713,7 +756,7 @@ function redraw()
     draw_cursor(c_pos_x,c_pos_y)
     draw_bars(15,61)
     if recording then
-      screen.level(blink and 5 or 15)
+      screen.level(rec_blink and 5 or 15)
       screen.circle(reel_pos_x + 80,reel_pos_y + 30,4)
       screen.fill()
       screen.stroke()
