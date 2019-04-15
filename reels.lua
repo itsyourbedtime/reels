@@ -698,7 +698,7 @@ function enc(n,d)
   norns.encoders.set_sens(3,1)
   norns.encoders.set_accel(1,false)
   norns.encoders.set_accel(2,settings and false or true)
-  norns.encoders.set_accel(3,(settings and (settings_list.index == 3 or settings_list.index == 4 or settings_list.index == 5)) and true or false)
+  norns.encoders.set_accel(3,(settings and (settings_list.index == 2 or settings_list.index == 3 or settings_list.index == 4)) and true or false)
   if n == 1 then
     if not recording then 
       trk = util.clamp(trk + d,1,TR) 
