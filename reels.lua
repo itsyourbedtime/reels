@@ -10,11 +10,11 @@
 -- enc 2 - change speed
 -- enc 3 - overdub level
 
-local sc = require "softcut"
 local UI = require "ui"
 local tab = require 'tabutil'
 local fileselect = require "fileselect"
 local textentry = require "textentry"
+local mix = require 'core/mix'
 
 local playing = false
 local recording = false
@@ -33,7 +33,7 @@ local c_pos_y = 58
 local bind_vals = {20,48,80,108,0,0,0,0,0,0}
 local clip_len_s = 60
 local rec_vol = 1
-local fade = 0.01
+local fade = 0.001
 local TR = 4
 local SLEW_AMOUNT = 0.03
 local WARBLE_AMOUNT = 10
@@ -53,7 +53,7 @@ local function update_rate(i)
   local n = math.pow(2,reel.speed)
   reel.speed = math.abs(speed)
   if reel.rev == 1 then n = -n end
-  sc.rate(i, n / reel.q[i])
+  softcut.rate(i, n / reel.q[i])
 end
 
 local function warble(state)
@@ -61,7 +61,7 @@ local function warble(state)
   if state == true then
     for i=1,TR do
       n[i] = (math.pow(2,reel.speed) / reel.q[i])
-      sc.rate(i, n[i] + l_reel[i].position / WARBLE_AMOUNT)
+      softcut.rate(i, n[i] + l_reel[i].position / WARBLE_AMOUNT)
       update_rate(i)
     end
   end
@@ -95,15 +95,16 @@ end
 local function update_params_list()
   settings_list.entries = {
     "TR " .. trk .. (mutes[trk] == false and "  Vol " or " "),
-    "Quality",
     "<" .. menu_loop_pos(trk, loop_pos[trk]) .. ">",
     "Start", 
     "End", 
-    "--", 
+    "--",
+    "Quality",
+    "--",
     "Load clip", 
     "Save clip",  
     "--", 
-    "Clear clip", 
+    "Clear track", 
     not mounted and "New reel" or "Clear all", 
     "--", 
     "Save reel", 
@@ -113,10 +114,11 @@ local function update_params_list()
   }
   settings_amounts_list.entries = {
     mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or " " .. util.round(reel.vol[trk]*100),
-    reel.q[trk],
     "",
     util.round(reel.loop_start[trk],0.1),
     util.round(reel.loop_end[trk],0.1),
+    "",
+    reel.q[trk],
     "",
     "",
     "",
@@ -135,10 +137,10 @@ local function set_loop(tr, st, en)
   loop_pos[tr] = util.clamp(math.ceil((st)  / 100 * 18),1,11)
   st = reel.s[tr] + st
   en = reel.s[tr] + en
-  sc.loop_start(tr,st)
-  sc.loop_end(tr,en)
+  softcut.loop_start(tr,st)
+  softcut.loop_end(tr,en)
   if play_time[tr] > en or play_time[tr] < st then
-    sc.position(tr,st)
+    softcut.position(tr,st)
     play_time[trk] = reel.loop_start[trk]
   end
 end
@@ -151,13 +153,10 @@ local function rec(tr, state)
     end
     -- sync pos with graphics
     rec_start = play_time[tr]
-    sc.position(tr, reel.s[tr] + rec_start)
+    softcut.position(tr, reel.s[tr] + rec_start)
     reel.rec[tr] = 1
-    sc.rec(tr,1)
+    softcut.rec(tr,1)
   elseif state == false then
-    recording = false
-    reel.rec[tr] = 0
-    sc.rec(tr,0)
      if reel.clip[tr] == 0 then
        if reel.rev == 0 then
          reel.loop_start[tr] = util.clamp(rec_start,0,60)
@@ -168,7 +167,10 @@ local function rec(tr, state)
          reel.loop_end[tr] = util.clamp(rec_start,0,60)
          set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
        end
-     end    
+     end
+    recording = false
+    reel.rec[tr] = 0
+    softcut.rec(tr,0)
     reel.clip[tr] = 1
     update_params_list()
   end
@@ -176,11 +178,11 @@ end
 
 local function mute(tr,state)
   if state == true then
-    sc.level(tr,0)
+    softcut.level(tr,0)
     mutes[tr] = true
   elseif state == false then
     mutes[tr] = false
-    sc.level(tr,reel.vol[tr])
+    softcut.level(tr,reel.vol[tr])
   end
 end
 
@@ -189,7 +191,7 @@ local function play(state)
     playing = true
     play_counter:start()
     for i=1,TR do
-      sc.play(i,1)
+      softcut.play(i,1)
       reel.play[i] = 1
     end
   elseif state == false then
@@ -197,26 +199,10 @@ local function play(state)
     play_counter:stop()
     for i=1,TR do
     if reel.rec[i] == 1 then rec(i,false) end
-      sc.play(i,0)
+      softcut.play(i,0)
       reel.play[i] = 0
     end
   end
-end
-
-local function clear_track(tr)
-  reel.clip[tr] = 1
-  if reel.name[tr]:find("*") then
-    reel.name[tr] = string.gsub(reel.name[tr], "*", "")
-  end
-  reel.q[tr] = 1
-  reel.loop_start[tr] = 0
-  reel.loop_end[tr] = 60
-  reel.length[tr] = 60
-  reel.clip[tr] = 0
-  set_loop(tr,0,reel.loop_end[tr])
-  sc.buffer_clear_region(reel.s[tr], reel.length[tr])
-  sc.position(tr,reel.s[tr])
-  print("Clear buffer region " .. reel.s[tr], reel.length[tr])
 end
 
 local function init_folders()
@@ -228,24 +214,28 @@ local function init_folders()
   end
 end
 
+local function clear_track(tr)
+  reel.name[tr] = "-"
+  reel.clip[tr] = 0
+  reel.q[tr] = 1
+  reel.loop_start[tr] = 0
+  reel.loop_end[tr] = 60
+  reel.length[tr] = 60
+  reel.clip[tr] = 0
+  set_loop(tr,0,reel.loop_end[tr])
+  softcut.buffer_clear_region(reel.s[tr], reel.length[tr])
+  softcut.position(tr,reel.s[tr])
+  print("Clear buffer region " .. reel.s[tr], reel.length[tr])
+end
+
 local function new_reel()
-  sc.buffer_clear()
-  reel.name = {"-","-","-","-"}
+  softcut.buffer_clear()
   settings_list.index = 1
   settings_amounts_list.index = 1
   rec_time = 0
   playing = false
   for i=1,TR do
-    play_time[i] = 0
-    table.insert(reel.q,1)
-    table.insert(reel.play,0)
-    reel.loop_end = {60, 60, 60, 60}
-    table.insert(reel.loop_start, 0)
-    table.insert(reel.loop_end,60)
-    table.insert(reel.length,60)
-    table.insert(reel.clip,0)
-    set_loop(i,0,reel.loop_end[i])
-    sc.position(i,reel.s[i])
+    clear_track(i)
   end
   mounted = true
   update_params_list()
@@ -266,11 +256,11 @@ local function load_clip(path)
       reel.e[trk] = reel.s[trk] + reel.length[trk]
       if not path:find(reel.proj) then reel.loop_end[trk] = reel.length[trk] end
       print("read to " .. reel.s[trk], reel.e[trk])
-      sc.buffer_read_mono(path, 0, reel.s[trk], reel.length[trk], 1, 1)
-      if not playing then sc.play(trk,0) end
+      softcut.buffer_read_mono(path, 0, reel.s[trk], reel.length[trk], 1, 1)
+      if not playing then softcut.play(trk,0) end
       play_time[trk] = 0
-      sc.position(trk,reel.s[trk])
-      sc.level(trk, reel.vol[trk])
+      softcut.position(trk,reel.s[trk])
+      softcut.level(trk, reel.vol[trk])
       mute(trk,false)
       mounted = true
       update_rate(trk)
@@ -307,9 +297,9 @@ local function load_mix(path)
           trk = util.clamp(trk + 1,1,TR)
           mounted = true
           play_time[i] = reel.loop_start[i]
-          sc.position(i,reel.s[i] + reel.loop_start[i])
+          softcut.position(i,reel.s[i] + reel.loop_start[i])
           update_rate(i)
-          sc.play(i,0)
+          softcut.play(i,0)
         end
       end
     else
@@ -327,7 +317,7 @@ local function save_clip(txt)
     local c_start = reel.s[trk]
     local c_len = reel.e[trk]
     print("SAVE " .. _path.audio .. "reels/".. txt .. ".aif", c_start, c_len)
-    sc.buffer_write_mono(_path.audio .. "reels/"..txt..".aif",c_start,c_len, 1)
+    softcut.buffer_write_mono(_path.audio .. "reels/"..txt..".aif",c_start,c_len, 1)
     reel.name[trk] = txt
   else
     print("save cancel")
@@ -345,7 +335,7 @@ local function save_project(txt)
           local save_path = _path.audio .."reels/" .. name
           reel.paths[i] = save_path
           print("saving "..i .. "clip at " .. save_path, reel.s[i],reel.e[i])
-          sc.buffer_write_mono(_path.audio .."reels/" .. name, reel.s[i],reel.e[i], 1)
+          softcut.buffer_write_mono(_path.audio .."reels/" .. name, reel.s[i],reel.e[i], 1)
         end
       end
     end
@@ -521,10 +511,24 @@ local function draw_cursor(x,y)
   screen.stroke()
 end
 
+
+mix.vu = function(in1,in2,out1,out2)
+  mix.in1 = in1
+  mix.in2 = in2
+  mix.out1 = out1
+  mix.out2 = out2
+end
+
 local function draw_rec_vol_slider(x,y)
+  norns.vu = mix.vu
   screen.level(1)
   screen.move(x - 30, y - 17)
   screen.line(x - 30, y + 29)
+  screen.stroke()
+  screen.level(3)
+  local n = util.clamp(mix.in1/64*48,0,rec_vol * 44)
+  screen.rect(x - 31.5,y + 30,2,-n)
+  screen.line_rel(3,0)
   screen.stroke()
   screen.level(6)
   screen.rect(x - 33, 48 - rec_vol / 3 * 132, 5, 2)
@@ -532,6 +536,7 @@ local function draw_rec_vol_slider(x,y)
 end
 
 function init()
+  softcut.reset()
   reel.proj = "untitled"
   reel.s = {}
   reel.e = {}
@@ -553,33 +558,33 @@ function init()
   audio.level_cut(1)
   audio.level_adc_cut(1)
   for i=1,4 do
-    sc.level(i,1)
-    sc.level_slew_time(1,SLEW_AMOUNT)
-    sc.level_input_cut(1, i, 1.0)
-    sc.level_input_cut(2, i, 1.0)
-    sc.pan(i, 0.5)
-    sc.play(i, 0)
-    sc.rate(i, 1)
+    softcut.level(i,1)
+    softcut.level_slew_time(1,SLEW_AMOUNT)
+    softcut.level_input_cut(1, i, 1.0)
+    softcut.level_input_cut(2, i, 1.0)
+    softcut.pan(i, 0.5)
+    softcut.play(i, 0)
+    softcut.rate(i, 1)
     reel.s[i] = 2 + (i-1) * clip_len_s
     reel.e[i] = reel.s[i] + (clip_len_s - 2)
-    sc.loop_start(i, reel.s[i])
-    sc.loop_end(i, reel.e[i])
+    softcut.loop_start(i, reel.s[i])
+    softcut.loop_end(i, reel.e[i])
     
-    sc.loop(i, 1)
-    sc.fade_time(i, 0.1)
-    sc.rec(i, 0)
-    sc.rec_level(i, 1)
-    sc.pre_level(i, 1)
-    sc.position(i, reel.s[i])
-    sc.buffer(i,1)
-    sc.enable(i, 1)
+    softcut.loop(i, 1)
+    softcut.fade_time(i, 0.1)
+    softcut.rec(i, 0)
+    softcut.rec_level(i, 1)
+    softcut.pre_level(i, 1)
+    softcut.position(i, reel.s[i])
+    softcut.buffer(i,1)
+    softcut.enable(i, 1)
     update_rate(i)
 
-    sc.filter_dry(i, 1);
-    sc.filter_fc(i, 0);
-    sc.filter_lp(i, 0);
-    sc.filter_bp(i, 0);
-    sc.filter_rq(i, 0);
+    softcut.filter_dry(i, 1);
+    softcut.filter_fc(i, 0);
+    softcut.filter_lp(i, 0);
+    softcut.filter_bp(i, 0);
+    softcut.filter_rq(i, 0);
     
     params:add_control(i.."pan", i.." pan", controlspec.new(0, 1, 'lin', 0, 0.5, ""))
     params:set_action(i.."pan", function(x) softcut.pan(i,x) end)
@@ -659,23 +664,23 @@ function key(n,z)
           end
         elseif settings_list.index == 2 then
           if not mounted then new_reel() end
-        elseif settings_list.index == 7 then
-          filesel = true
-          fileselect.enter(_path.audio, load_clip)
         elseif settings_list.index == 8 then
           filesel = true
-          textentry.enter(save_clip, reel.name[trk] == "-*" and "reel-" .. (math.random(9000)+1000) or (reel.name[trk]:find("*") and reel.name[trk]:match("[^.]*")):sub(2,-1))
-        elseif settings_list.index == 10 then
-          clear_track(trk)
-        elseif settings_list.index == 11 then
-          new_reel()
-        elseif settings_list.index == 13 then
+          fileselect.enter(_path.audio, load_clip)
+        elseif settings_list.index == 9 then
           filesel = true
-          textentry.enter(save_project, reel.proj)
+          textentry.enter(save_clip, reel.name[trk] == "-*" and "reel-" .. (math.random(9000)+1000) or (reel.name[trk]:find("*") and reel.name[trk]:match("[^.]*")):sub(2,-1))
+        elseif settings_list.index == 11 then
+          clear_track(trk)
+        elseif settings_list.index == 12 then
+          new_reel()
         elseif settings_list.index == 14 then
           filesel = true
+          textentry.enter(save_project, reel.proj)
+        elseif settings_list.index == 15 then
+          filesel = true
             fileselect.enter(_path.data.."reels/", load_mix)
-        elseif settings_list.index == 16 then
+        elseif settings_list.index == 17 then
           warble_state = not warble_state
         end
         update_params_list()
@@ -719,29 +724,27 @@ function enc(n,d)
   elseif n == 3 then
     if not settings then
       rec_vol = util.clamp(rec_vol + d / 100, 0,1)
-      sc.rec_level(trk,rec_vol)
+      mix:delta("monitor",d)
+      softcut.rec_level(trk,rec_vol)
     elseif (settings and mounted) then
       if settings_list.index == 1 and mutes[trk] == false then
         reel.vol[trk] = util.clamp(reel.vol[trk] + d / 100, 0,1)
-        sc.level(trk,reel.vol[trk])
+        softcut.level(trk,reel.vol[trk])
         update_params_list()
       elseif settings_list.index == 2 then
-        reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
-        update_rate(trk)
-      elseif settings_list.index == 3 then
         local loop_len = reel.loop_end[trk] - reel.loop_start[trk]
         reel.loop_start[trk] = util.clamp(reel.loop_start[trk] + d / 10,0,59)
         reel.loop_end[trk] = util.clamp(reel.loop_start[trk] + loop_len,reel.loop_start[trk],reel.length[trk])
         set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
-      elseif settings_list.index == 4 then
+      elseif settings_list.index == 3 then
         reel.loop_start[trk] = util.clamp(reel.loop_start[trk] + d / 10,0,reel.loop_end[trk])
         set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
-      elseif settings_list.index == 5 then
+      elseif settings_list.index == 4 then
         reel.loop_end[trk] = util.clamp(reel.loop_end[trk] + d / 10,reel.loop_start[trk],util.round(reel.length[trk],0.1))
         set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
-      elseif settings_list.index == 16 then
-        reel.loop_end[trk] = util.clamp(reel.loop_end[trk] + d / 10,reel.loop_start[trk],util.round(reel.length[trk],0.1))
-        set_loop(trk,reel.loop_start[trk],reel.loop_end[trk])
+      elseif settings_list.index == 6 then
+        reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
+        update_rate(trk)
       end
       update_params_list()
     end
@@ -782,5 +785,5 @@ function redraw()
 end
 
 function cleanup()
-  sc.buffer_clear()
+  softcut.buffer_clear()
 end
