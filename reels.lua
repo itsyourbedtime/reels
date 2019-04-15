@@ -21,7 +21,7 @@ local recording = false
 local filesel = false
 local settings = false
 local mounted = false
-local warble_state = false
+local flutter_state = false
 local tape_tension = 30
 local plhead_lvl = 35 -- playhead height
 local plhead_slvl = 0 -- playhead brightness
@@ -36,7 +36,7 @@ local rec_vol = 1
 local fade = 0.001
 local TR = 4
 local SLEW_AMOUNT = 0.03
-local WARBLE_AMOUNT = 10
+local FLUTTER_AMOUNT = 10
 local trk = 1
 local rec_blink = false
 local r_reel = {{},{},{},{},{},{}}
@@ -56,12 +56,12 @@ local function update_rate(i)
   softcut.rate(i, n / reel.q[i])
 end
 
-local function warble(state)
+ function flutter(state)
   local n = {}
   if state == true then
     for i=1,TR do
       n[i] = (math.pow(2,reel.speed) / reel.q[i])
-      softcut.rate(i, n[i] + l_reel[i].position / WARBLE_AMOUNT)
+      softcut.rate(i, n[i] + l_reel[i].position / FLUTTER_AMOUNT)
       update_rate(i)
     end
   end
@@ -84,7 +84,7 @@ local function play_count()
   if recording then
     rec_time = play_time[trk]
   end
-  warble(warble_state)
+  flutter(flutter_state)
 end
 
 local function menu_loop_pos(tr, pos)
@@ -110,7 +110,7 @@ local function update_params_list()
     "Save reel", 
     "Load reel",
     "--",
-    "Warble"
+    "Flutter"
   }
   settings_amounts_list.entries = {
     mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or " " .. util.round(reel.vol[trk]*100),
@@ -129,7 +129,7 @@ local function update_params_list()
     "",
     "",
     "",
-    warble_state == true and "On" or "Off"
+    flutter_state == true and FLUTTER_AMOUNT or "Off"
   }
 end
 
@@ -453,9 +453,15 @@ local function draw_reel(x,y)
   -- tape
   if mounted then
     screen.level(6)
-    screen.move(x,y-17)
-    screen.line(x+65,y-12)
-    screen.stroke()
+    if not flutter_state or (flutter_state and not playing) then
+      screen.move(x,y-17)
+      screen.line(x+65,y-12)
+      screen.stroke()
+    elseif (flutter_state and playing) then
+      screen.move(x,y-17)
+      screen.curve(x+65-(FLUTTER_AMOUNT * math.random(5)/40), y-12,x+65-(FLUTTER_AMOUNT * math.random(10)/20),y-12, x+70-(FLUTTER_AMOUNT * math.random(5)/40),y-12)
+      screen.stroke()
+    end
     screen.level(6)
     screen.circle(x,y,18)
     screen.stroke()
@@ -474,6 +480,7 @@ local function draw_reel(x,y)
     screen.stroke()
     screen.move(x-9,y+16)
     screen.line(x+5,y+30)
+    screen.curve(x+5,y+30,x+5,y+30,x+5,y+30)
     screen.stroke()
     screen.move(x+5,y+30)
     screen.curve(x+40,y+tape_tension,x+25,y+tape_tension,x+56,y+30)
@@ -684,7 +691,7 @@ function key(n,z)
           filesel = true
             fileselect.enter(_path.data.."reels/", load_mix)
         elseif settings_list.index == 17 then
-          warble_state = not warble_state
+          flutter_state = not flutter_state
         end
         update_params_list()
       end
@@ -748,6 +755,10 @@ function enc(n,d)
       elseif settings_list.index == 6 then
         reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
         update_rate(trk)
+      elseif settings_list.index == 17 then
+        if flutter_state then
+          FLUTTER_AMOUNT = util.clamp(FLUTTER_AMOUNT + d,1,100)
+        end
       end
       update_params_list()
     end
