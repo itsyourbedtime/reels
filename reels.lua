@@ -157,17 +157,20 @@ local function rec(tr, state)
     reel.rec[tr] = 1
     softcut.rec(tr,1)
   elseif state == false then
-     if reel.clip[tr] == 0 then
-       if reel.rev == 0 then
-         reel.loop_start[tr] = util.clamp(rec_start,0,60)
-         reel.loop_end[tr] = util.clamp(rec_time,0,60)
-         set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
-       elseif reel.rev == 1 then
-         reel.loop_start[tr] = util.clamp(rec_time,0,60)
-         reel.loop_end[tr] = util.clamp(rec_start,0,60)
-         set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
-       end
-     end
+    if reel.clip[tr] == 0 then
+      -- l o o p i n g
+      if reel.rev == 0 then
+        reel.loop_start[tr] = util.clamp(rec_start,0,60)
+        reel.loop_end[tr] = util.clamp(rec_time,0,60)
+      elseif reel.rev == 1 then
+        reel.loop_start[tr] = util.clamp(rec_time,0,60)
+        reel.loop_end[tr] = util.clamp(rec_start,0,60)
+      end
+      if reel.loop_end[tr] < reel.loop_start[tr] then
+        reel.loop_end[tr] = 60
+      end
+      set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
+    end
     recording = false
     reel.rec[tr] = 0
     softcut.rec(tr,0)
