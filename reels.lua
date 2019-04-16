@@ -33,10 +33,10 @@ local c_pos_y = 58
 local bind_vals = {20,48,80,108,0,0,0,0,0,0}
 local clip_len_s = 60
 local rec_vol = 1
-local fade = 0.01
+local fade = 0.001
 local TR = 4
-local SLEW_AMOUNT = 0.5
-local FLUTTER_AMOUNT = 10
+local SLEW_AMOUNT = 0.1
+local FLUTTER_AMOUNT = 0
 local trk = 1
 local rec_blink = false
 local r_reel = {{},{},{},{},{},{}}
@@ -174,8 +174,7 @@ local function rec(tr, state)
       update_params_list()
     end
     -- sync pos with graphics
-    softcut.position(tr, reel.s[tr] + play_time[tr] + 0.1) -- fix for offset?
-    softcut.rec_level(tr,rec_vol)
+    softcut.position(tr, reel.s[tr] + play_time[tr] + 0.01) -- fix for offset?
     softcut.rec(tr,1)
   elseif state == false then
     if (reel.clip[tr] == 0 and recording) then
@@ -573,7 +572,7 @@ end
 
 local function rec_work(tr)
   if reel.rec[tr] == 1 then
-    if (threshold(threshold_val) and arm) then
+    if ((threshold(threshold_val) and arm) and playing) then
       arm = false 
       rec(tr,true)
     end
@@ -621,8 +620,8 @@ function init()
     softcut.loop(i, 1)
     softcut.rec(i, 0)
     
-    softcut.fade_time(i,fade)
-    softcut.level_slew_time(i,10)
+    softcut.fade_time(i,0.01)
+    softcut.level_slew_time(i,0)
     softcut.rate_slew_time(i,SLEW_AMOUNT)
 
     softcut.rec_level(i, 1)
