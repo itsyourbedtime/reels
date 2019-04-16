@@ -33,9 +33,9 @@ local c_pos_y = 58
 local bind_vals = {20,48,80,108,0,0,0,0,0,0}
 local clip_len_s = 60
 local rec_vol = 1
-local fade = 0.05
+local fade = 0.01
 local TR = 4
-local SLEW_AMOUNT = 0.03
+local SLEW_AMOUNT = 0.5
 local FLUTTER_AMOUNT = 10
 local trk = 1
 local rec_blink = false
@@ -48,7 +48,24 @@ local rec_start
 local play_time = {0,0,0,0}
 local mutes = {true,true,true,true}
 local loop_pos = {1, 1, 1, 1}
+local threshold_val = 1
+local arm = false
 -- 
+mix.vu = function(in1,in2,out1,out2)
+  mix.in1 = in1
+  mix.in2 = in2
+  mix.out1 = out1
+  mix.out2 = out2
+end
+
+local function threshold(val)
+  if (mix.in1 >= val or mix.in2 >= val) then
+    return true
+  else
+    return false
+  end
+end
+
 local function update_rate(i)
   local n = math.pow(2,reel.speed)
   reel.speed = math.abs(speed)
@@ -93,44 +110,47 @@ local function menu_loop_pos(tr, pos)
 end
 
 local function update_params_list()
-  settings_list.entries = {
-    "TR " .. trk .. (mutes[trk] == false and "  Vol " or " "),
-    "<" .. menu_loop_pos(trk, loop_pos[trk]) .. ">",
-    "Start", 
-    "End", 
-    "--",
-    "Quality",
-    "--",
-    "Load clip", 
-    "Save clip",  
-    "--", 
-    "Clear track", 
-    not mounted and "New reel" or "Clear all", 
-    "--", 
-    "Save reel", 
-    "Load reel",
-    "--",
-    "Flutter"
-  }
-  settings_amounts_list.entries = {
-    mutes[trk] == false and util.round(reel.vol[trk]*100) or (reel.clip[trk] == 0 and "Load" or "muted") or " " .. util.round(reel.vol[trk]*100),
-    "",
-    util.round(reel.loop_start[trk],0.1),
-    util.round(reel.loop_end[trk],0.1),
-    "",
-    reel.q[trk],
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    flutter_state == true and FLUTTER_AMOUNT or "Off"
-  }
+  if mounted then
+    settings_list.entries = {
+      "TR " .. trk .. ((mutes[trk] == false and reel.clip[trk] == 1) and "  Vol" or " "),
+      "<" .. menu_loop_pos(trk, loop_pos[trk]) .. ">",
+      "Start", 
+      "End", 
+      "--",
+      "Quality",
+      "Flutter",
+      "Threshold",
+      "--", 
+      "Clear track", 
+      "Load clip", 
+      "Save clip",  
+      "-- ", 
+      not mounted and "New reel" or "Clear all",
+      "Load reel",
+      "Save reel", 
+    }
+    settings_amounts_list.entries = {
+      (mutes[trk] == false and reel.clip[trk] == 1) and util.round(reel.vol[trk]*100) or (reel.name[trk] == "-" and "load" or "muted") or " " .. util.round(reel.vol[trk]*100),
+      "",
+      util.round(reel.loop_start[trk],0.1),
+      util.round(reel.loop_end[trk],0.1),
+      "",
+      reel.q[trk],
+      flutter_state == true and FLUTTER_AMOUNT or "off",
+      threshold_val == 0 and "no" or threshold_val, 
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+    }
+  else 
+    settings_list.entries = {"New reel", "Load reel"}
+    settings_amounts_list.entries = {}
+  end
 end
 
 local function set_loop(tr, st, en)
@@ -148,38 +168,39 @@ end
 local function rec(tr, state)
   if state == true then
     recording = true
-    rec_start = play_time[tr]
     if not reel.name[tr]:find("*") then
       reel.name[tr] = "*" .. reel.name[tr]
+      rec_start = play_time[tr] 
+      update_params_list()
     end
     -- sync pos with graphics
-    
     softcut.position(tr, reel.s[tr] + play_time[tr] + 0.1) -- fix for offset?
-    reel.rec[tr] = 1
     softcut.rec_level(tr,rec_vol)
     softcut.rec(tr,1)
   elseif state == false then
-    if reel.clip[tr] == 0 then
+    if (reel.clip[tr] == 0 and recording) then
       -- l o o p i n g
       if reel.rev == 0 then
-        reel.loop_start[tr] = util.clamp(rec_start,0,60)
-        reel.loop_end[tr] = util.clamp(rec_time,0,60)
+        reel.loop_start[tr] = util.clamp(rec_start, 0, 60)
+        reel.loop_end[tr] = util.clamp(rec_time, 0, 60)
       elseif reel.rev == 1 then
-        reel.loop_start[tr] = util.clamp(rec_time,0,60)
-        reel.loop_end[tr] = util.clamp(rec_start,0,60)
+        reel.loop_start[tr] = util.clamp(rec_time, 0, 60)
+        reel.loop_end[tr] = util.clamp(rec_start, 0, 60)
       end
       if reel.loop_end[tr] < reel.loop_start[tr] then
         reel.loop_end[tr] = 60
       end
-      set_loop(tr, reel.loop_start[tr], reel.loop_end[tr])
+      set_loop(tr, reel.loop_start[tr] + 0.01, reel.loop_end[tr] + 0.01)
+      reel.clip[tr] =1
     end
+    reel.clip[tr] = reel.clip[tr]
     recording = false
     reel.rec[tr] = 0
     softcut.rec(tr,0)
-    reel.clip[tr] = 1
     update_params_list()
   end
 end
+
 
 local function mute(tr,state)
   if state == true then
@@ -230,7 +251,6 @@ local function clear_track(tr)
   set_loop(tr,0,reel.loop_end[tr])
   softcut.buffer_clear_region(reel.s[tr], reel.length[tr])
   softcut.position(tr,reel.s[tr])
-  print("Clear buffer region " .. reel.s[tr], reel.length[tr])
 end
 
 local function new_reel()
@@ -270,7 +290,6 @@ local function load_clip(path)
       mounted = true
       update_rate(trk)
       update_params_list()
-      -- default loop on
       set_loop(trk,0,reel.loop_end[trk])
     else
       print("not a sound file")
@@ -290,29 +309,30 @@ local function load_reel_data(pth)
   end
 end
 
-local function load_mix(path)
+local function load_reel(path)
   if path ~= "cancel" then
     if path:find(".reel") then
       load_reel_data(path)
+      mounted = true
       trk = 1
       for i=1,TR do
         if reel.name[i] ~= "-" then
-          --print("reading file > " ..reel.paths[i])
           load_clip(reel.paths[i])
           trk = util.clamp(trk + 1,1,TR)
-          mounted = true
           play_time[i] = reel.loop_start[i]
           softcut.position(i,reel.s[i] + reel.loop_start[i])
           update_rate(i)
           softcut.play(i,0)
         end
       end
+    trk = 1
+    settings = true
     else
       print("not a reel file")
     end
+  else
+    mounted = false 
   end
-  trk = 1
-  settings = true
   filesel = false
   update_params_list()
 end
@@ -454,16 +474,20 @@ local function draw_reel(x,y)
   screen.stroke()
   -- tape
   if mounted then
+    local x1, x2, x3
     screen.level(6)
     if not flutter_state or (flutter_state and not playing) then
-      screen.move(x,y-17)
-      screen.line(x+65,y-12)
-      screen.stroke()
+      x1 = x + 65
+      x2 = x + 65
+      x3 = x + 70
     elseif (flutter_state and playing) then
-      screen.move(x,y-17)
-      screen.curve(x+65-(FLUTTER_AMOUNT * math.random(5)/40), y-12,x+65-(FLUTTER_AMOUNT * math.random(10)/20),y-12, x+70-(FLUTTER_AMOUNT * math.random(5)/40),y-12)
-      screen.stroke()
+      x1 =  x + 65 - (FLUTTER_AMOUNT * math.random(5)/40)
+      x2 =  x + 65 - (FLUTTER_AMOUNT * math.random(10)/20)
+      x3 =  x + 70 - (FLUTTER_AMOUNT * math.random(5)/40)
     end
+    screen.move(x,y-17)
+    screen.curve(x1, y-12, x2, y-12, x3, y-12)
+    screen.stroke()
     screen.level(6)
     screen.circle(x,y,18)
     screen.stroke()
@@ -523,14 +547,6 @@ local function draw_cursor(x,y)
   screen.stroke()
 end
 
-
-mix.vu = function(in1,in2,out1,out2)
-  mix.in1 = in1
-  mix.in2 = in2
-  mix.out1 = out1
-  mix.out2 = out2
-end
-
 local function draw_rec_vol_slider(x,y)
   norns.vu = mix.vu
   screen.level(1)
@@ -550,6 +566,20 @@ local function draw_rec_vol_slider(x,y)
   screen.level(6)
   screen.rect(x - 33, 48 - rec_vol / 3 * 132, 5, 2)
   screen.fill()
+  screen.level(5)
+  screen.rect(x - 32, 50 - threshold_val / 15 * 10, 3, 1) -- 2do
+  screen.fill()
+end
+
+local function rec_work(tr)
+  if reel.rec[tr] == 1 then
+    if (threshold(threshold_val) and arm) then
+      arm = false 
+      rec(tr,true)
+    end
+  else
+    
+  end
 end
 
 function init()
@@ -574,6 +604,7 @@ function init()
   reel.q = {1, 1, 1, 1}
   audio.level_cut(1)
   audio.level_adc_cut(1)
+  audio.level_eng_cut(0)
   mix:set_raw("monitor",rec_vol)
   for i=1,4 do
     softcut.level(i,1)
@@ -588,7 +619,6 @@ function init()
     softcut.loop_end(i, reel.e[i])
     
     softcut.loop(i, 1)
-    softcut.fade_time(i, 0.1)
     softcut.rec(i, 0)
     
     softcut.fade_time(i,fade)
@@ -623,11 +653,11 @@ function init()
   init_folders()
   update_reel()
   -- settings
-  settings_list = UI.ScrollingList.new(75, 12, 1, {"Load reel", "New reel"})
+  settings_list = UI.ScrollingList.new(75, 12, 1, {"New reel", "Load reel"})
   settings_list.num_visible = 4
   settings_list.num_above_selected = 0
   settings_list.active = false
-  settings_amounts_list = UI.ScrollingList.new(125, 12)
+  settings_amounts_list = UI.ScrollingList.new(128, 12)
   settings_amounts_list.num_visible = 4
   settings_amounts_list.num_above_selected = 0
   settings_amounts_list.text_align = "right"
@@ -638,8 +668,15 @@ function init()
   blink_metro:start()
   reel_redraw = metro.init{event = function(stage) redraw() animation() end, time = 1 / 60}
   reel_redraw:start()
+  rec_worker = metro.init{event = function(stage) rec_work(trk) end, time = 1 / 30}
+  rec_worker:start()
+
   --
 end
+
+
+
+
 
 function key(n,z)
   if z == 1 then
@@ -656,6 +693,8 @@ function key(n,z)
           play(true)
       elseif reel.play[trk] == 1 then
         if reel.rec[trk] == 1 then
+          reel.rec[trk] = 0
+          arm = false
           rec(trk,false)
         else
           play(false)
@@ -666,44 +705,57 @@ function key(n,z)
     elseif n == 3 then
       if settings == false and mounted then
         if reel.rec[trk] == 0 then
-          rec(trk,true)
+          reel.rec[trk] = 1 -- rec work flag
+          arm = true
           mute(trk, false)
         elseif reel.rec[trk] == 1 then
+          reel.rec[trk] = 0
+          arm = false
           rec(trk,false)
         end
       elseif settings == true then
         if settings_list.index == 1 then
           if mounted then
-            if reel.clip[trk] == 0  then
+            if reel.name[trk] == "-" then
               filesel = true
               fileselect.enter(_path.audio, load_clip)
             elseif reel.clip[trk] == 1 then
               mute(trk, not mutes[trk])
             end
           else
-            filesel = true
-            fileselect.enter(_path.data .."reels/", load_mix)
+            if not mounted then 
+              new_reel() 
+            end
           end
-        elseif settings_list.index == 2 then
-          if not mounted then new_reel() end
-        elseif settings_list.index == 8 then
+        elseif (settings_list.index == 2 and not mounted) then
+          filesel = true
+          fileselect.enter(_path.data .."reels/", load_reel)
+        elseif settings_list.index == 10 then -- clear tr
+          clear_track(trk)
+        elseif settings_list.index == 11 then -- load clip
           filesel = true
           fileselect.enter(_path.audio, load_clip)
-        elseif settings_list.index == 9 then
+        elseif settings_list.index == 12 then -- save
           filesel = true
           textentry.enter(save_clip, reel.name[trk] == "-*" and "reel-" .. (math.random(9000)+1000) or (reel.name[trk]:find("*") and reel.name[trk]:match("[^.]*")):sub(2,-1))
-        elseif settings_list.index == 11 then
-          clear_track(trk)
-        elseif settings_list.index == 12 then
+        elseif settings_list.index == 14 then -- clear reel
           new_reel()
-        elseif settings_list.index == 14 then
+        elseif settings_list.index == 15 then -- load 
+          filesel = true
+            fileselect.enter(_path.data.."reels/", load_reel)
+        elseif settings_list.index == 16 then -- save 
           filesel = true
           textentry.enter(save_project, reel.proj)
-        elseif settings_list.index == 15 then
-          filesel = true
-            fileselect.enter(_path.data.."reels/", load_mix)
-        elseif settings_list.index == 17 then
-          flutter_state = not flutter_state
+        elseif (settings_list.index <= 9 or settings_list.index >= 2) then
+          if reel.rec[trk] == 0 then
+            reel.rec[trk] = 1 -- rec work flag
+            arm = true
+            mute(trk, false)
+          elseif reel.rec[trk] == 1 then
+            reel.rec[trk] = 0
+            arm = false
+            rec(trk,false)
+          end
         end
         update_params_list()
       end
@@ -719,7 +771,7 @@ function enc(n,d)
   norns.encoders.set_accel(2,settings and false or true)
   norns.encoders.set_accel(3,(settings and (settings_list.index == 2 or settings_list.index == 3 or settings_list.index == 4)) and true or false)
   if n == 1 then
-    if not recording then 
+    if (not recording and reel.rec[trk] ~= 1) then 
       trk = util.clamp(trk + d,1,TR) 
     end
     if mounted then
@@ -767,10 +819,18 @@ function enc(n,d)
       elseif settings_list.index == 6 then
         reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
         update_rate(trk)
-      elseif settings_list.index == 17 then
+      elseif settings_list.index == 7 then
         if flutter_state then
-          FLUTTER_AMOUNT = util.clamp(FLUTTER_AMOUNT + d,1,100)
+          FLUTTER_AMOUNT = util.clamp(FLUTTER_AMOUNT + d,0,100)
+          if FLUTTER_AMOUNT < 1 then
+            flutter_state = not flutter_state 
+          end
+        elseif not flutter_state then 
+          flutter_state  = not flutter_state
         end
+      elseif settings_list.index == 8 then
+        threshold_val = util.clamp(threshold_val + d, 0, 60)
+        update_rate(trk)
       end
       update_params_list()
     end
@@ -779,6 +839,8 @@ end
 
 function redraw()
   screen.aa(0)
+  screen.font_size(8)
+  
   if not filesel then
     screen.clear()
     draw_reel(reel_pos_x,reel_pos_y)
