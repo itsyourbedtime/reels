@@ -33,7 +33,7 @@ local c_pos_y = 58
 local bind_vals = {20,48,80,108,0,0,0,0,0,0}
 local clip_len_s = 60
 local rec_vol = 1
-local fade = 0.001
+local fade = 0.05
 local TR = 4
 local SLEW_AMOUNT = 0.03
 local FLUTTER_AMOUNT = 10
@@ -148,13 +148,15 @@ end
 local function rec(tr, state)
   if state == true then
     recording = true
+    rec_start = play_time[tr]
     if not reel.name[tr]:find("*") then
       reel.name[tr] = "*" .. reel.name[tr]
     end
     -- sync pos with graphics
-    rec_start = play_time[tr]
-    softcut.position(tr, reel.s[tr] + rec_start)
+    
+    softcut.position(tr, reel.s[tr] + play_time[tr] + 0.1) -- fix for offset?
     reel.rec[tr] = 1
+    softcut.rec_level(tr,rec_vol)
     softcut.rec(tr,1)
   elseif state == false then
     if reel.clip[tr] == 0 then
@@ -540,6 +542,11 @@ local function draw_rec_vol_slider(x,y)
   screen.rect(x - 31.5,y + 30,2,-n)
   screen.line_rel(3,0)
   screen.stroke()
+  screen.level(4)
+  local n = util.clamp(mix.in2/64*48,0,rec_vol * 44)
+  screen.rect(x - 31.5,y + 30,3,-n)
+  screen.line_rel(3,0)
+  screen.fill()
   screen.level(6)
   screen.rect(x - 33, 48 - rec_vol / 3 * 132, 5, 2)
   screen.fill()
@@ -567,9 +574,9 @@ function init()
   reel.q = {1, 1, 1, 1}
   audio.level_cut(1)
   audio.level_adc_cut(1)
+  mix:set_raw("monitor",rec_vol)
   for i=1,4 do
     softcut.level(i,1)
-    softcut.level_slew_time(1,SLEW_AMOUNT)
     softcut.level_input_cut(1, i, 1.0)
     softcut.level_input_cut(2, i, 1.0)
     softcut.pan(i, 0.5)
@@ -583,6 +590,11 @@ function init()
     softcut.loop(i, 1)
     softcut.fade_time(i, 0.1)
     softcut.rec(i, 0)
+    
+    softcut.fade_time(i,fade)
+    softcut.level_slew_time(i,10)
+    softcut.rate_slew_time(i,SLEW_AMOUNT)
+
     softcut.rec_level(i, 1)
     softcut.pre_level(i, 1)
     softcut.position(i, reel.s[i])
@@ -734,7 +746,7 @@ function enc(n,d)
   elseif n == 3 then
     if not settings then
       rec_vol = util.clamp(rec_vol + d / 100, 0,1)
-      mix:delta("monitor",d)
+      mix:set_raw("monitor",rec_vol)
       softcut.rec_level(trk,rec_vol)
     elseif (settings and mounted) then
       if settings_list.index == 1 and mutes[trk] == false then
