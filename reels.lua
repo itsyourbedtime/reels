@@ -531,7 +531,7 @@ local function draw_bars(x,y)
     screen.stroke()
     screen.level(0)
     -- display loop start / end points
-    screen.rect(((x * i *2) - 24) + (reel.loop_start[i] / reel.length[i] * 25), 61, (reel.loop_end[i] / reel.length[i] * 25) - (reel.loop_start[i] / reel.length[i] * 25), 2)
+    screen.rect(((x * i *2) - 24) + ((reel.loop_start[i] - 1) / reel.length[i] * 25), 61, ((reel.loop_end[i] + 1) / reel.length[i] * 25) - ((reel.loop_start[i] - 1) / reel.length[i] * 25), 2)
     screen.fill()
     screen.level(15)
     screen.move(((x * i *2) - 24) + (((play_time[i]) / (reel.length[i]) * 25)), 61)
@@ -664,10 +664,6 @@ function init()
   --
 end
 
-
-
-
-
 function key(n,z)
   if z == 1 then
     if n == 1 then
@@ -756,8 +752,7 @@ end
 function enc(n,d)
   norns.encoders.set_sens(1,4)
   norns.encoders.set_sens(2,(settings and 6 or 1))
-  -- 2do 
-  norns.encoders.set_sens(3,(settings and (settings_list.index == (2 or 7 or 8))) and 1 or (not settings and (speed < -0.01 or speed > 0.01)) and 1 or 5)
+  norns.encoders.set_sens(3,(settings and (settings_list.index == (1 or 2 or 7 or 8))) and 1 or (not settings and (speed < -0.01 or speed > 0.01)) and 1 or 3)
   norns.encoders.set_accel(1,false)
   norns.encoders.set_accel(2,false)
   norns.encoders.set_accel(3,(settings and settings_list.index < 5) and true or false)
