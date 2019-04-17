@@ -130,22 +130,15 @@ local function update_params_list()
       "Save reel", 
     }
     settings_amounts_list.entries = {
-      (mutes[trk] == false and reel.clip[trk] == 1) and util.round(reel.vol[trk]*100) or (reel.name[trk] == "-" and "load" or "muted") or " " .. util.round(reel.vol[trk]*100),
+      (mutes[trk] == false and reel.clip[trk] == 1) and util.round(reel.vol[trk]*100) or (reel.name[trk] == "-" and "Load" or "Muted") or " " .. util.round(reel.vol[trk]*100),
       "",
       util.round(reel.loop_start[trk],0.1),
       util.round(reel.loop_end[trk],0.1),
       "",
-      reel.q[trk],
-      flutter_state == true and FLUTTER_AMOUNT or "off",
+      reel.q[trk] == 1 and "1:1" or "1:" .. reel.q[trk],
+      (flutter_state == true and FLUTTER_AMOUNT > 0 ) and FLUTTER_AMOUNT or "no",
       threshold_val == 0 and "no" or threshold_val, 
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
+      "","","","","","","","",
     }
   else 
     settings_list.entries = {"New reel", "Load reel"}
@@ -174,7 +167,7 @@ local function rec(tr, state)
       update_params_list()
     end
     -- sync pos with graphics
-    softcut.position(tr, reel.s[tr] + play_time[tr] + 0.01) -- fix for offset?
+    softcut.position(tr, reel.s[tr] + play_time[tr]) -- fix offset?
     softcut.rec(tr,1)
   elseif state == false then
     if (reel.clip[tr] == 0 and recording) then
@@ -200,14 +193,23 @@ local function rec(tr, state)
   end
 end
 
+local function rec_work(tr)
+  if reel.rec[tr] == 1 then
+    if ((threshold(threshold_val) and arm) and playing) then
+      arm = false 
+      rec(tr,true)
+    end
+  else
+  end
+end
 
 local function mute(tr,state)
   if state == true then
     softcut.level(tr,0)
     mutes[tr] = true
   elseif state == false then
-    mutes[tr] = false
     softcut.level(tr,reel.vol[tr])
+    mutes[tr] = false
   end
 end
 
@@ -429,7 +431,7 @@ local function draw_reel(x,y)
   elseif l == 0 then
     l = reel.rev == 1 and 5 or 1
   end
-  screen.level(1)
+  screen.level(2)
   screen.line_width(1.9)
   local pos = {1,3,5}
   for i = 1, 3 do
@@ -568,17 +570,6 @@ local function draw_rec_vol_slider(x,y)
   screen.level(5)
   screen.rect(x - 32, 50 - threshold_val / 15 * 10, 3, 1) -- 2do
   screen.fill()
-end
-
-local function rec_work(tr)
-  if reel.rec[tr] == 1 then
-    if ((threshold(threshold_val) and arm) and playing) then
-      arm = false 
-      rec(tr,true)
-    end
-  else
-    
-  end
 end
 
 function init()
@@ -764,11 +755,12 @@ end
 
 function enc(n,d)
   norns.encoders.set_sens(1,4)
-  norns.encoders.set_sens(2,3)
-  norns.encoders.set_sens(3,1)
+  norns.encoders.set_sens(2,(settings and 6 or 1))
+  -- 2do 
+  norns.encoders.set_sens(3,(settings and (settings_list.index == (2 or 7 or 8))) and 1 or (not settings and (speed < -0.01 or speed > 0.01)) and 1 or 5)
   norns.encoders.set_accel(1,false)
-  norns.encoders.set_accel(2,settings and false or true)
-  norns.encoders.set_accel(3,(settings and (settings_list.index == 2 or settings_list.index == 3 or settings_list.index == 4)) and true or false)
+  norns.encoders.set_accel(2,false)
+  norns.encoders.set_accel(3,(settings and settings_list.index < 5) and true or false)
   if n == 1 then
     if (not recording and reel.rec[trk] ~= 1) then 
       trk = util.clamp(trk + d,1,TR) 
@@ -781,6 +773,15 @@ function enc(n,d)
     end
   elseif n == 2 then
     if not settings then
+      rec_vol = util.clamp(rec_vol + d / 100, 0,1)
+      mix:set_raw("monitor",rec_vol)
+      softcut.rec_level(trk,rec_vol)
+    elseif settings then
+      settings_list:set_index_delta(util.clamp(d, -1, 1), false)
+      settings_amounts_list:set_index(settings_list.index)
+    end
+  elseif n == 3 then
+    if not settings then
       speed = util.clamp(util.round((speed + d /  100 ),0.001),-0.8,0.8)
       if speed < 0 then
         reel.rev = 1
@@ -790,15 +791,6 @@ function enc(n,d)
       for i=1,TR do
         update_rate(i)
       end
-    elseif settings then
-      settings_list:set_index_delta(util.clamp(d, -1, 1), false)
-      settings_amounts_list:set_index(settings_list.index)
-    end
-  elseif n == 3 then
-    if not settings then
-      rec_vol = util.clamp(rec_vol + d / 100, 0,1)
-      mix:set_raw("monitor",rec_vol)
-      softcut.rec_level(trk,rec_vol)
     elseif (settings and mounted) then
       if settings_list.index == 1 and mutes[trk] == false then
         reel.vol[trk] = util.clamp(reel.vol[trk] + d / 100, 0,1)
