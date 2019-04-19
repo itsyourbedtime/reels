@@ -409,6 +409,11 @@ reels.init = function()
   params:set_action("tape_switch", function(x) if x == 1 then reels.active = false else reels.active = true end end)
   params:add_separator()
 
+  params:add_control("IN", "Input level", controlspec.new(0, 1, 'lin', 0, 1, ""))
+  params:set_action("IN", function(x) audio.level_adc_cut(input_vol) end)
+  params:add_control("ENG", "Engine level", controlspec.new(0, 1, 'lin', 0, 0, ""))
+  params:set_action("ENG", function(x) audio.level_eng_cut(engine_vol) end)
+  params:add_separator()
 
 
   for i=1,4 do
