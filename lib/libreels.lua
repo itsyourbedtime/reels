@@ -69,6 +69,8 @@ end
 reels.threshold = function(val)
   if (mix.in1 >= val or mix.in2 >= val) then
     return true
+  elseif (engine_vol > 0 and (mix.out1 >= val or mix.out2 >= val)) then -- engine level dumb hack
+    return true
   else
     return false
   end
@@ -410,9 +412,9 @@ reels.init = function()
   params:add_separator()
 
   params:add_control("IN", "Input level", controlspec.new(0, 1, 'lin', 0, 1, ""))
-  params:set_action("IN", function(x) audio.level_adc_cut(x) end)
+  params:set_action("IN", function(x) input_vol = x  audio.level_adc_cut(input_vol) end)
   params:add_control("ENG", "Engine level", controlspec.new(0, 1, 'lin', 0, 0, ""))
-  params:set_action("ENG", function(x) audio.level_eng_cut(x) end)
+  params:set_action("ENG", function(x) engine_vol = x audio.level_eng_cut(engine_vol) end)
   params:add_separator()
 
 
