@@ -754,7 +754,7 @@ function reels:key(n,z)
             filesel = true
             fileselect.enter(_path.data .."reels/", reels.load_reel)
           elseif settings_list.index == 10 then -- clear tr
-            reels.reels.clear_track(trk)
+            reels.clear_track(trk)
           elseif settings_list.index == 11 then -- load clip
             filesel = true
             fileselect.enter(_path.audio, reels.load_clip)
