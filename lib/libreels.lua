@@ -42,8 +42,8 @@ local input_vol = 1
 local engine_vol = 0
 local fade = 0.001
 local TR = 4
-local SLEW_AMOUNT = 0.1
-local FLUTTER_AMOUNT = 0
+local SLEW_AMOUNT = 1
+local FLUTTER_AMOUNT = 60
 local trk = 1
 local rec_blink = false
 local r_reel = {{},{},{},{},{},{}}
@@ -86,7 +86,7 @@ reels.flutter = function(state)
   if state == true then
     for i=1,TR do
       n[i] = (math.pow(2,reel.speed) / reel.q[i])
-      softcut.rate(i, n[i] + l_reel[i].position / FLUTTER_AMOUNT)
+      softcut.rate(i, n[i] + l_reel[i].position / 10)
       reels.update_rate(i)
     end
   end
@@ -144,7 +144,7 @@ reels.update_params_list = function()
       util.round(reel.loop_end[trk],0.1),
       "",
       reel.q[trk] == 1 and "1:1" or "1:" .. reel.q[trk],
-      (flutter_state == true and FLUTTER_AMOUNT > 0 ) and FLUTTER_AMOUNT or "no",
+      flutter_state == true and "on" or "off",
       threshold_val == 0 and "no" or threshold_val, 
       "","","","","","","","",
     }
@@ -401,8 +401,8 @@ reels.init = function()
   reel.length = {60, 60, 60, 60}
   reel.q = {1, 1, 1, 1}
   audio.level_cut(1)
-  audio.level_adc_cut(input_vol)
-  audio.level_eng_cut(engine_vol)
+  audio.level_adc_cut(1)
+  audio.level_eng_cut(0)
   mix:set_raw("monitor", rec_vol)
   -- param switch 
   params:add_option ("tape_switch", "Reels:", {"background", "active"}, 1)
@@ -410,9 +410,9 @@ reels.init = function()
   params:add_separator()
 
   params:add_control("IN", "Input level", controlspec.new(0, 1, 'lin', 0, 1, ""))
-  params:set_action("IN", function(x) audio.level_adc_cut(input_vol) end)
+  params:set_action("IN", function(x) audio.level_adc_cut(x) end)
   params:add_control("ENG", "Engine level", controlspec.new(0, 1, 'lin', 0, 0, ""))
-  params:set_action("ENG", function(x) audio.level_eng_cut(engine_vol) end)
+  params:set_action("ENG", function(x) audio.level_eng_cut(x) end)
   params:add_separator()
 
 
@@ -844,14 +844,7 @@ function reels:enc(n,d)
           reel.q[trk] = util.clamp(reel.q[trk] + d,1,24)
           reels.update_rate(trk)
         elseif settings_list.index == 7 then
-          if flutter_state then
-            FLUTTER_AMOUNT = util.clamp(FLUTTER_AMOUNT + d,0,100)
-            if FLUTTER_AMOUNT < 1 then
-              flutter_state = not flutter_state 
-            end
-          elseif not flutter_state then 
-            flutter_state  = not flutter_state
-          end
+          flutter_state  = not flutter_state
         elseif settings_list.index == 8 then
           threshold_val = util.clamp(threshold_val + d, 0, 60)
           reels.update_rate(trk)
