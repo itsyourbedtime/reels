@@ -14,7 +14,7 @@
 -- manually with reels.active = true / false
 
 local reels = {}
-local mix = require 'core/mix'
+reels.mix = require 'core/mix'
 local UI = require "ui"
 local tab = require 'tabutil'
 local fileselect = require "fileselect"
@@ -383,7 +383,7 @@ reels.save_project = function(txt)
 end
 
 reels.init = function()
-  softcut.reset()
+  --softcut.reset()
   reel.proj = "untitled"
   reel.s = {}
   reel.e = {}
@@ -677,7 +677,7 @@ end
 
 reels.draw_rec_vol_slider = function(x,y)
   
-norns.vu = mix.vu
+  norns.vu = mix.vu
   screen.level(1)
   screen.move(x - 30, y - 17)
   screen.line(x - 30, y + 29)
