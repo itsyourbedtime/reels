@@ -422,7 +422,7 @@ reels.init = function()
     softcut.level(i,1)
     softcut.level_input_cut(1, i, 1.0)
     softcut.level_input_cut(2, i, 1.0)
-    softcut.pan(i, 0.5)
+    softcut.pan(i, 0)
     softcut.play(i, 0)
     softcut.rate(i, 1)
     reel.s[i] = 2 + (i-1) * clip_len_s
@@ -453,7 +453,7 @@ reels.init = function()
     params:add_control(i.."vol", i.." Volume", controlspec.new(0, 1, 'lin', 0, 1, ""))
     params:set_action(i.."vol", function(x) reel.vol[i]  = x softcut.level(i, reel.vol[i]) reels.update_params_list() end)
 
-    params:add_control(i.."pan", i.." Pan", controlspec.new(0, 1, 'lin', 0, 0.5, ""))
+    params:add_control(i.."pan", i.." Pan", controlspec.new(-1, 1, 'lin', 0, 0, ""))
     params:set_action(i.."pan", function(x) softcut.pan(i,x) end)
     
     params:add_separator()
