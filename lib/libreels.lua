@@ -456,8 +456,6 @@ reels.init = function()
   reels.blink_metro:start()
   reels.update = metro.init{event = function(stage) reels.rec_handler(reel.track.selected) if (not norns.menu.status() and reels.active) then reels:redraw() reels.animation() else end end, time = 1 / 60}
   reels.update:start()
-  reels.rec_worker = metro.init{event = function(stage) end, time = 1 / 30}
-  reels.rec_worker:start()
   --
   if reels.active then params:set("tape_switch", 2) else params:set("tape_switch", 1) end
 end
