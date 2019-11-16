@@ -1,6 +1,8 @@
+-- reels.
 --
--- reel to reel tape player 
 -- @its_your_bedtime
+-- llllllll.co/t/reels
+--
 --
 -- hold btn 1 for settings
 -- btn 2 play / pause
