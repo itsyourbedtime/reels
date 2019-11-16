@@ -42,11 +42,11 @@ local reel = {
     track = {
         selected = 1,
         name  = { "-", "-", "-", "-" },
-        clip  = { 0, 0, 0, 0 },
         level = { 1, 1, 1, 1 },
         time  = { 0, 0, 0, 0 },
         quality = { 1, 1, 1, 1 },
         length  = { 60, 60, 60, 60 },
+        clip  = { false, false, false, false },
         play = { false, false, false, false },
         rec  = { false, false, false, false },
         mute = { true, true, true, true },
@@ -114,7 +114,7 @@ end
 reels.update_params_list = function()
   if mounted then
     settings_list.entries = {
-      "TR " .. reel.track.selected .. ((reel.track.mute[reel.track.selected] == false and reel.track.clip[reel.track.selected] == 1) and "  Vol" or " "),
+      "TR " .. reel.track.selected .. ((reel.track.mute[reel.track.selected] == false and reel.track.clip[reel.track.selected]) and "  Vol" or " "),
       "<" .. reels.menu_loop_pos(reel.track.selected, reel.loop.pos[reel.track.selected]) .. ">",
       "Start", 
       "End", 
@@ -132,7 +132,7 @@ reels.update_params_list = function()
       "Save reel", 
     }
     settings_amounts_list.entries = {
-      (reel.track.mute[reel.track.selected] == false and reel.track.clip[reel.track.selected] == 1) and util.round(reel.track.level[reel.track.selected]*100) or (reel.track.name[reel.track.selected] == "-" and "Load" or "Muted") or " " .. util.round(reel.track.level[reel.track.selected]*100),
+      (reel.track.mute[reel.track.selected] == false and reel.track.clip[reel.track.selected]) and util.round(reel.track.level[reel.track.selected]*100) or (reel.track.name[reel.track.selected] == "-" and "Load" or "Muted") or " " .. util.round(reel.track.level[reel.track.selected]*100),
       "",
       util.round(reel.loop.s[reel.track.selected],0.1),
       util.round(reel.loop.e[reel.track.selected],0.1),
@@ -172,7 +172,7 @@ reels.rec = function(tr, state)
     softcut.position(tr, reel.s[tr] + reel.track.time[tr]) -- fix offset?
     softcut.rec(tr,1)
   elseif state == false then
-    if (reel.track.clip[tr] == 0 and recording) then
+    if (not reel.track.clip[tr] and recording) then
       -- l o o p i n g
       if not reel.playback.reverse then
         reel.loop.s[tr] = util.clamp(reel.rec.start, 0, 60)
@@ -185,7 +185,7 @@ reels.rec = function(tr, state)
         reel.loop.e[tr] = 60
       end
       reels.set_loop(tr, reel.loop.s[tr] + 0.01, reel.loop.e[tr] + 0.01)
-      reel.track.clip[tr] =1
+      reel.track.clip[tr] = true
     end
     reel.track.clip[tr] = reel.track.clip[tr]
     recording = false
@@ -245,15 +245,14 @@ end
 
 reels.clear_track = function(tr)
   reel.track.name[tr] = "-"
-  reel.track.clip[tr] = 0
+  reel.track.clip[tr] = false
   reel.track.quality[tr] = 1
   reel.loop.s[tr] = 0
   reel.loop.e[tr] = 60
   reel.track.length[tr] = 60
-  reel.track.clip[tr] = 0
-  reels.set_loop(tr,0,reel.loop.e[tr])
+  reels.set_loop(tr, 0, reel.loop.e[tr])
   softcut.buffer_clear_region(reel.s[tr], reel.track.length[tr])
-  softcut.position(tr,reel.s[tr])
+  softcut.position(tr, reel.s[tr])
 end
 
 reels.new_reel = function()
@@ -274,7 +273,7 @@ reels.load_clip = function(path)
     if path:find(".aif") or path:find(".wav") then
       local ch, len = sound_file_inspect(path)
       reel.paths[reel.track.selected] = path
-      reel.track.clip[reel.track.selected] = 1
+      reel.track.clip[reel.track.selected] = true
       reel.track.name[reel.track.selected] = path:match("[^/]*$")
       if len/48000 <= 60 then 
 	      reel.track.length[reel.track.selected] = len/48000
@@ -643,7 +642,7 @@ reels.draw_bars = function(x,y)
     screen.fill()
     screen.level(15)
     screen.move(((x * i *2) - 24) + (((reel.track.time[i]) / (reel.track.length[i]) * 25)), 61)
-    screen.line_rel(0,2)
+    screen.line_rel(0, 2)
     screen.stroke()
   end
 end
@@ -726,7 +725,7 @@ function reels:key(n,z)
               if reel.track.name[reel.track.selected] == "-" then
                 filesel = true
                 fileselect.enter(_path.audio, reels.load_clip)
-              elseif reel.track.clip[reel.track.selected] == 1 then
+              elseif reel.track.clip[reel.track.selected] then
                 reels.mute(reel.track.selected, not reel.track.mute[reel.track.selected])
               end
             else
