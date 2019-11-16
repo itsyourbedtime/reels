@@ -78,7 +78,7 @@ end
 reels.flutter = function(state)
   local n = {}
   if state == true then
-    for i=1,total_tracks do
+    for i=1, total_tracks do
       n[i] = (math.pow(2,reel.playback.speed) / reel.track.quality[i])
       softcut.rate(i, n[i] + ui.reel.left[i].position / 10)
       reels.update_rate(i)
@@ -87,7 +87,7 @@ reels.flutter = function(state)
 end
 
 reels.play_count = function()
-  for i=1,total_tracks do
+  for i=1, total_tracks do
     if not reel.playback.reverse then
       reel.track.time[i] = reel.track.time[i] + (0.01 / (reel.track.quality[i] - math.abs(speed / 2 )))
       if reel.track.time[i] >= (reel.loop.e[i] or reel.track.length[i]) then 
@@ -149,7 +149,7 @@ reels.update_params_list = function()
 end
 
 reels.set_loop = function(tr, st, en)
-  reel.loop.pos[tr] = util.clamp(math.ceil((st)  / 100 * 18),1,11)
+  reel.loop.pos[tr] = util.clamp(math.ceil((st)  / 100 * 18), 1, 11)
   st = reel.s[tr] + st
   en = reel.s[tr] + en
   softcut.loop_start(tr,st)
@@ -170,7 +170,7 @@ reels.rec = function(tr, state)
     end
     -- sync pos with graphics
     softcut.position(tr, reel.s[tr] + reel.track.time[tr]) -- fix offset?
-    softcut.rec(tr,1)
+    softcut.rec(tr, 1)
   elseif state == false then
     if (not reel.track.clip[tr] and recording) then
       -- l o o p i n g
@@ -190,7 +190,7 @@ reels.rec = function(tr, state)
     reel.track.clip[tr] = reel.track.clip[tr]
     recording = false
     reel.track.rec[tr] = false
-    softcut.rec(tr,0)
+    softcut.rec(tr, 0)
     reels.update_params_list()
   end
 end
@@ -199,7 +199,7 @@ reels.rec_work = function(tr)
   if reel.track.rec[tr] then
     if ((reels.threshold(reel.rec.threshold) and reel.rec.arm) and playing) then
       reel.rec.arm = false 
-      reels.rec(tr,true)
+      reels.rec(tr, true)
     end
   else
   end
@@ -207,7 +207,7 @@ end
 
 reels.mute = function(tr,state)
   if state == true then
-    softcut.level(tr,0)
+    softcut.level(tr, 0)
     reel.track.mute[tr] = true
   elseif state == false then
     softcut.level(tr,reel.track.level[tr])
@@ -219,14 +219,14 @@ reels.play = function(state)
   if state == true then
     playing = true
     reels.play_counter:start()
-    for i=1,total_tracks do
-      softcut.play(i,1)
+    for i=1, total_tracks do
+      softcut.play(i, 1)
       reel.track.play[i] = true
     end
   elseif state == false then
     playing = false
     reels.play_counter:stop()
-    for i=1,total_tracks do
+    for i=1, total_tracks do
     if reel.track.rec[i] then reels.rec(i, false) end
       softcut.play(i, 0)
       reel.track.play[i] = false
@@ -261,7 +261,7 @@ reels.new_reel = function()
   settings_amounts_list.index = 1
   reel.rec.time = 0
   playing = false
-  for i=1,total_tracks do
+  for i=1, total_tracks do
     reels.clear_track(i)
   end
   mounted = true
@@ -275,8 +275,8 @@ reels.load_clip = function(path)
       reel.paths[reel.track.selected] = path
       reel.track.clip[reel.track.selected] = true
       reel.track.name[reel.track.selected] = path:match("[^/]*$")
-      if len/48000 <= 60 then 
-	      reel.track.length[reel.track.selected] = len/48000
+      if len / 48000 <= 60 then 
+	      reel.track.length[reel.track.selected] = len / 48000
       else
 	      reel.track.length[reel.track.selected] = 59.9
       end
@@ -284,11 +284,11 @@ reels.load_clip = function(path)
       if not path:find(reel.proj) then reel.loop.e[reel.track.selected] = reel.track.length[reel.track.selected] end
       print("read to " .. reel.s[reel.track.selected], reel.e[reel.track.selected])
       softcut.buffer_read_mono(path, 0, reel.s[reel.track.selected], reel.track.length[reel.track.selected], 1, 1)
-      if not playing then softcut.play(reel.track.selected,0) end
+      if not playing then softcut.play(reel.track.selected, 0) end
       reel.track.time[reel.track.selected] = 0
       softcut.position(reel.track.selected, reel.s[reel.track.selected])
       softcut.level(reel.track.selected, reel.track.level[reel.track.selected])
-      reels.mute(reel.track.selected,false)
+      reels.mute(reel.track.selected, false)
       mounted = true
       reels.update_rate(reel.track.selected)
       reels.update_params_list()
@@ -317,14 +317,14 @@ reels.load_reel = function(path)
       reels.load_reel_data(path)
       mounted = true
       reel.track.selected = 1
-      for i=1,total_tracks do
+      for i=1, total_tracks do
         if reel.track.name[i] ~= "-" then
           reels.load_clip(reel.paths[i])
-          reel.track.selected = util.clamp(reel.track.selected + 1,1, total_tracks)
+          reel.track.selected = util.clamp(reel.track.selected + 1, 1, total_tracks)
           reel.track.time[i] = reel.loop.s[i]
-          softcut.position(i,reel.s[i] + reel.loop.s[i])
+          softcut.position(i, reel.s[i] + reel.loop.s[i])
           reels.update_rate(i)
-          softcut.play(i,0)
+          softcut.play(i, 0)
         end
       end
     reel.track.selected = 1
@@ -344,7 +344,7 @@ reels.save_clip = function(txt)
     local c_start = reel.s[reel.track.selected]
     local c_len = reel.e[reel.track.selected]
     print("SAVE " .. _path.audio .. "reels/".. txt .. ".aif", c_start, c_len)
-    softcut.buffer_write_mono(_path.audio .. "reels/"..txt..".aif",c_start,c_len, 1)
+    softcut.buffer_write_mono(_path.audio .. "reels/"..txt..".aif", c_start, c_len, 1)
     reel.track.name[reel.track.selected] = txt
   else
     print("save cancel")
@@ -355,13 +355,13 @@ end
 reels.save_project = function(txt)
   if txt then
     reel.proj = txt
-    for i=1,total_tracks do
+    for i=1, total_tracks do
       if reel.track.name[i] ~= "-" then
         if reel.track.name[i]:find("*") then
           local name = reel.track.name[i] == "*-" and (txt .. "-rec-" .. i .. ".aif") or reel.track.name[i]:sub(2,-1) -- remove asterisk
           local save_path = _path.audio .."reels/" .. name
           reel.paths[i] = save_path
-          print("saving "..i .. "clip at " .. save_path, reel.s[i],reel.e[i])
+          print("saving ".. i .. "clip at " .. save_path, reel.s[i],reel.e[i])
           softcut.buffer_write_mono(_path.audio .."reels/" .. name, reel.s[i],reel.e[i], 1)
         end
       end
@@ -374,9 +374,6 @@ reels.save_project = function(txt)
 end
 
 reels.init = function()
-  --softcut.reset()
-  
-
   audio.level_cut(1)
   audio.level_adc_cut(1)
   audio.level_eng_cut(0)
@@ -400,7 +397,7 @@ reels.init = function()
   reel.vu_r:start()
 
 
-  for i=1,4 do
+  for i=1, 4 do
     softcut.level(i,1)
     softcut.level_input_cut(1, i, 1.0)
     softcut.level_input_cut(2, i, 1.0)
@@ -442,13 +439,13 @@ reels.init = function()
     
   end
   -- reel graphics
-  for i=1,6 do
+  for i=1, 6 do
     ui.reel.right[i].orbit = math.fmod(i,2)~=0 and 6 or 15
     ui.reel.right[i].position = i <= 2 and 0 or i <= 4 and 2 or 4
     ui.reel.right[i].velocity = util.linlin(0, 1, 0.01, speed, 1)
     ui.reel.left[i].orbit = math.fmod(i,2)~=0 and 6 or 15
     ui.reel.left[i].position = i <= 2 and 3 or i <= 4 and 5 or 7.1
-    ui.reel.left[i].velocity = util.linlin(0, 1, 0.01, speed*3, 0.2)
+    ui.reel.left[i].velocity = util.linlin(0, 1, 0.01, speed * 3, 0.2)
   end
   reels.init_folders()
   reels.update_reel()
@@ -463,7 +460,7 @@ reels.init = function()
   settings_amounts_list.text_align = "right"
   settings_amounts_list.active = false
   --
-  reels.play_counter = metro.init{event = function(stage) if playing == true then reels.play_count() end end,time = 0.01, count = -1}
+  reels.play_counter = metro.init{event = function(stage) if playing == true then reels.play_count() end end, time = 0.01, count = -1}
   reels.blink_metro = metro.init{event = function(stage) blink = not blink end, time = 1 / 2}
   reels.blink_metro:start()
   reels.reel_redraw = metro.init{event = function(stage) if (not norns.menu.status() and reels.active) then reels:redraw() reels.animation() else end end, time = 1 / 60}
@@ -479,12 +476,12 @@ reels.init = function()
 end
 
 function reels.update_reel()
-  for i=1,6 do
-    ui.reel.left[i].velocity = util.linlin(0, 1, 0.01, (speed/1.9)/(reel.track.quality[1]/2), 0.15)
+  for i=1, 6 do
+    ui.reel.left[i].velocity = util.linlin(0, 1, 0.01, (speed / 1.9)/(reel.track.quality[1] / 2), 0.15)
     ui.reel.left[i].position = (ui.reel.left[i].position - ui.reel.left[i].velocity) % (math.pi * 2)
     ui.reel.left[i].x = 30 + ui.reel.left[i].orbit * math.cos(ui.reel.left[i].position)
     ui.reel.left[i].y = 25 + ui.reel.left[i].orbit * math.sin(ui.reel.left[i].position)
-    ui.reel.right[i].velocity = util.linlin(0, 1, 0.01, (speed/1.5)/(reel.track.quality[1]/2), 0.15)
+    ui.reel.right[i].velocity = util.linlin(0, 1, 0.01, (speed / 1.5)/(reel.track.quality[1] / 2), 0.15)
     ui.reel.right[i].position = (ui.reel.right[i].position - ui.reel.right[i].velocity) % (math.pi * 2)
     ui.reel.right[i].x = 95 + ui.reel.right[i].orbit * math.cos(ui.reel.right[i].position)
     ui.reel.right[i].y = 25 + ui.reel.right[i].orbit * math.sin(ui.reel.right[i].position)
@@ -501,7 +498,7 @@ reels.animation = function()
     end
     if ui.tape.tension > 20 and ui.playhead.height < 32  then
       ui.tape.tension = ui.tape.tension - 1
-      ui.playhead.brightness = util.clamp(ui.playhead.brightness + 1,0,2)
+      ui.playhead.brightness = util.clamp(ui.playhead.brightness + 1, 0, 2)
     end
   elseif not playing then
     if ui.playhead.height < 35 then
@@ -510,7 +507,7 @@ reels.animation = function()
       end
     if ui.tape.tension < 30 then
       ui.tape.tension = ui.tape.tension + 1
-      ui.playhead.brightness = util.clamp(ui.playhead.brightness - 1,0,5)
+      ui.playhead.brightness = util.clamp(ui.playhead.brightness - 1, 0, 5)
     end
   end
   if settings then
@@ -522,9 +519,9 @@ reels.animation = function()
   -- cursor position
   if ui.cursor.x ~= ui.cursor.bind[reel.track.selected] then
     if ui.cursor.x <= ui.cursor.bind[reel.track.selected] then
-      ui.cursor.x = util.clamp(ui.cursor.x + 3, ui.cursor.bind[reel.track.selected]-20, ui.cursor.bind[reel.track.selected])
+      ui.cursor.x = util.clamp(ui.cursor.x + 3, ui.cursor.bind[reel.track.selected] - 20, ui.cursor.bind[reel.track.selected])
     elseif ui.cursor.x >= ui.cursor.bind[reel.track.selected] then
-      ui.cursor.x = util.clamp(ui.cursor.x - 3, ui.cursor.bind[reel.track.selected], ui.cursor.bind[reel.track.selected]+20)
+      ui.cursor.x = util.clamp(ui.cursor.x - 3, ui.cursor.bind[reel.track.selected], ui.cursor.bind[reel.track.selected] + 20)
     end
   end
 end
@@ -543,42 +540,42 @@ reels.draw_reel = function(x,y)
   local pos = { 1, 3, 5}
   for i = 1, 3 do
     screen.move((x + ui.reel.right[pos[i]].x) - 30, (y + ui.reel.right[pos[i]].y) - 25)--, 0.5)
-    screen.line((x + ui.reel.right[pos[i]+1].x) - 30, (y + ui.reel.right[pos[i]+1].y) - 25)
+    screen.line((x + ui.reel.right[pos[i] + 1].x) - 30, (y + ui.reel.right[pos[i] + 1].y) - 25)
     screen.stroke()
     screen.move((x + ui.reel.left[pos[i]].x) - 30, (y + ui.reel.left[pos[i]].y) - 25)--, 0.5)
-    screen.line((x + ui.reel.left[pos[i]+1].x) - 30, (y + ui.reel.left[pos[i]+1].y) - 25)
+    screen.line((x + ui.reel.left[pos[i] + 1].x) - 30, (y + ui.reel.left[pos[i] + 1].y) - 25)
     screen.stroke()
   end
   screen.line_width(1)
   -- speed icons >>>>
   screen.move(x + 32, y + 2)-- - 19)
   screen.level(speed == 0 and 1 or 6)
-  screen.text_center(ui.speed[util.clamp(l,1,8)])
+  screen.text_center(ui.speed[util.clamp(l, 1, 8)])
   screen.stroke()
   --
   screen.level(1)
-  screen.circle(x+5,y+28,2)
+  screen.circle(x + 5, y + 28, 2)
   screen.fill()
-  screen.circle(x+55,y+28,2)
+  screen.circle(x + 55, y + 28, 2)
   screen.fill()
   screen.level(0)
-  screen.circle(x+5,y+28,1)
-  screen.circle(x+55,y+28,1)
+  screen.circle(x + 5, y + 28, 1)
+  screen.circle(x + 55, y + 28, 1)
   screen.fill()
   --right reel
   screen.level(1)
-  screen.circle(x+65,y,1)
+  screen.circle(x + 65, y, 1)
   screen.stroke()
-  screen.circle(x+65,y,20)
+  screen.circle(x + 65, y, 20)
   screen.stroke()
-  screen.circle(x+65,y,3)
+  screen.circle(x + 65, y, 3)
   screen.stroke()
   -- left
-  screen.circle(x,y,20)
+  screen.circle(x, y, 20)
   screen.stroke()
-  screen.circle(x,y,1)
+  screen.circle(x, y, 1)
   screen.stroke()
-  screen.circle(x,y,3)
+  screen.circle(x, y, 3)
   screen.stroke()
   -- tape
   if mounted then
@@ -589,51 +586,51 @@ reels.draw_reel = function(x,y)
       x2 = x + 65
       x3 = x + 70
     elseif (ui.tape.flutter.on and playing) then
-      x1 =  x + 65 - (ui.tape.flutter.amount * math.random(5)/40)
-      x2 =  x + 65 - (ui.tape.flutter.amount * math.random(10)/20)
-      x3 =  x + 70 - (ui.tape.flutter.amount * math.random(5)/40)
+      x1 =  x + 65 - (ui.tape.flutter.amount * math.random(5) / 40)
+      x2 =  x + 65 - (ui.tape.flutter.amount * math.random(10) / 20)
+      x3 =  x + 70 - (ui.tape.flutter.amount * math.random(5) / 40)
     end
-    screen.move(x,y-17)
-    screen.curve(x1, y-12, x2, y-12, x3, y-12)
+    screen.move(x, y - 17)
+    screen.curve(x1, y - 12, x2, y - 12, x3, y - 12)
     screen.stroke()
     screen.level(6)
-    screen.circle(x,y,18)
+    screen.circle(x, y, 18)
     screen.stroke()
     screen.level(3)
-    screen.circle(x,y,17)
+    screen.circle(x, y, 17)
     screen.stroke()
     screen.level(6)
-    screen.circle(x+65,y,14)
+    screen.circle(x + 65, y, 14)
     screen.stroke()
     screen.level(3)
-    screen.circle(x+65,y,13)
+    screen.circle(x + 65, y, 13)
     screen.stroke()
     screen.level(6)
-    screen.move(x+75,y+10)
-    screen.line(x+55,y+30)
+    screen.move(x + 75, y + 10)
+    screen.line(x + 55, y + 30)
     screen.stroke()
-    screen.move(x-9,y+16)
-    screen.line(x+5,y+30)
-    screen.curve(x+5,y+30,x+5,y+30,x+5,y+30)
+    screen.move(x - 9, y + 16)
+    screen.line(x + 5, y + 30)
+    screen.curve(x + 5, y + 30, x + 5, y + 30, x + 5, y + 30)
     screen.stroke()
-    screen.move(x+5,y+30)
-    screen.curve(x+40,y+ui.tape.tension,x+25,y+ui.tape.tension,x+56,y+30)
+    screen.move(x + 5, y + 30)
+    screen.curve(x + 40, y + ui.tape.tension, x + 25, y + ui.tape.tension, x + 56, y + 30)
     screen.stroke()
   end
   -- playhead
   screen.level(ui.playhead.brightness)
-  screen.circle(x + 32,y + ui.playhead.height + 1,3)
-  screen.rect(x + 28,y + ui.playhead.height,8,4)
+  screen.circle(x + 32, y + ui.playhead.height + 1, 3)
+  screen.rect(x + 28, y + ui.playhead.height, 8, 4)
   screen.fill()
 end
 
-reels.draw_bars = function(x,y)
-  for i=1,total_tracks do
+reels.draw_bars = function(x, y)
+  for i=1, total_tracks do
     screen.level(reel.track.mute[i] and 1 or reel.track.rec[i] and 9 or 3)
-    screen.rect((x * i *2) - 24,y,26,3)
+    screen.rect((x * i *2) - 24, y, 26, 3)
     screen.stroke()
     screen.level(reel.track.mute[i] and 1 or reel.track.rec[i] and 9 or 3)
-    screen.rect((x * i *2) - 24,y,25,3)
+    screen.rect((x * i *2) - 24, y, 25, 3)
     screen.fill()
     screen.stroke()
     screen.level(0)
@@ -649,26 +646,25 @@ end
 
 
 
-reels.draw_cursor = function(x,y)
+reels.draw_cursor = function(x, y)
   screen.level(9)
-  screen.move(x-3,y-3)
+  screen.move(x - 3, y - 3)
   screen.line(x,y)
-  screen.line_rel(3,-3)
+  screen.line_rel(3, -3)
   screen.stroke()
 end
 
 
-reels.draw_rec_vol_slider = function(x,y)
+reels.draw_rec_vol_slider = function(x, y)
   
   screen.level(1)
   screen.move(x - 30, y - 17)
   screen.line(x - 30, y + 29)
   screen.stroke()
   screen.level(3)
-  --local n = util.clamp((mix.in1 or 0)/64*48,0,rec_vol * 44)
   local n = util.clamp((in_l or 0), 0, rec_vol * 44)
-  screen.rect(x - 31.5,y + 30,3,-n)
-  screen.line_rel(3,0)
+  screen.rect(x - 31.5 ,y + 30,3,-n)
+  screen.line_rel(3, 0)
   screen.fill()
   screen.level(4)
   local n = util.clamp((in_r or 0), 0, rec_vol * 44)
@@ -683,7 +679,7 @@ reels.draw_rec_vol_slider = function(x,y)
   screen.fill()
 end
 
-function reels:key(n,z)
+function reels:key(n, z)
   if reels.active then
     if z == 1 then
       if n == 1 then
@@ -771,13 +767,13 @@ function reels:key(n,z)
   end
 end
 
-function reels:enc(n,d)
+function reels:enc(n, d)
   if reels.active then
     norns.encoders.set_sens(1,7)
-    norns.encoders.set_sens(2,(settings and 6 or 1))
-    norns.encoders.set_sens(3,(settings and (settings_list.index == (1 or 2 or 7 or 8))) and 1 or (not settings and (speed < -0.01 or speed > 0.01)) and 1 or 3)
-    norns.encoders.set_accel(1,false)
-    norns.encoders.set_accel(2,false)
+    norns.encoders.set_sens(2, (settings and 6 or 1))
+    norns.encoders.set_sens(3, (settings and (settings_list.index == (1 or 2 or 7 or 8))) and 1 or (not settings and (speed < -0.01 or speed > 0.01)) and 1 or 3)
+    norns.encoders.set_accel(1, false)
+    norns.encoders.set_accel(2, false)
     norns.encoders.set_accel(3,(settings and settings_list.index < 5) and true or false)
     if n == 1 then
       if (not recording and not reel.track.rec[reel.track.selected]) then 
@@ -791,42 +787,42 @@ function reels:enc(n,d)
       end
     elseif n == 2 then
       if not settings then
-        rec_vol = util.clamp(rec_vol + d / 100, 0,1)
+        rec_vol = util.clamp(rec_vol + d / 100, 0, 1)
         mix:set_raw("monitor", rec_vol)
-        softcut.rec_level(reel.track.selected,rec_vol)
+        softcut.rec_level(reel.track.selected, rec_vol)
       elseif settings then
         settings_list:set_index_delta(util.clamp(d, -1, 1), false)
         settings_amounts_list:set_index(settings_list.index)
       end
     elseif n == 3 then
       if not settings then
-        speed = util.clamp(util.round((speed + d /  100 ),0.001),-0.8,0.8)
+        speed = util.clamp( util.round(( speed + d /  100 ), 0.001 ), -0.8, 0.8 )
         if speed < 0 then
           reel.playback.reverse = true
         elseif speed >= 0 then
           reel.playback.reverse = false
         end
-        for i=1,total_tracks do
+        for i=1, total_tracks do
           reels.update_rate(i)
         end
       elseif (settings and mounted) then
         if settings_list.index == 1 and reel.track.mute[reel.track.selected] == false then
-          reel.track.level[reel.track.selected] = util.clamp(reel.track.level[reel.track.selected] + d / 100, 0,1)
+          reel.track.level[reel.track.selected] = util.clamp(reel.track.level[reel.track.selected] + d / 100, 0, 1)
           softcut.level(reel.track.selected,reel.track.level[reel.track.selected])
           reels.update_params_list()
         elseif settings_list.index == 2 then
           local loop_len = reel.loop.e[reel.track.selected] - reel.loop.s[reel.track.selected]
-          reel.loop.s[reel.track.selected] = util.clamp(reel.loop.s[reel.track.selected] + d / 10,0,59)
-          reel.loop.e[reel.track.selected] = util.clamp(reel.loop.s[reel.track.selected] + loop_len,reel.loop.s[reel.track.selected],reel.track.length[reel.track.selected])
-          reels.set_loop(reel.track.selected,reel.loop.s[reel.track.selected],reel.loop.e[reel.track.selected])
+          reel.loop.s[reel.track.selected] = util.clamp(reel.loop.s[reel.track.selected] + d / 10, 0, 59)
+          reel.loop.e[reel.track.selected] = util.clamp(reel.loop.s[reel.track.selected] + loop_len, reel.loop.s[reel.track.selected], reel.track.length[reel.track.selected])
+          reels.set_loop(reel.track.selected, reel.loop.s[reel.track.selected], reel.loop.e[reel.track.selected])
         elseif settings_list.index == 3 then
-          reel.loop.s[reel.track.selected] = util.clamp(reel.loop.s[reel.track.selected] + d / 10,0,reel.loop.e[reel.track.selected])
+          reel.loop.s[reel.track.selected] = util.clamp(reel.loop.s[reel.track.selected] + d / 10, 0, reel.loop.e[reel.track.selected])
           reels.set_loop(reel.track.selected,reel.loop.s[reel.track.selected],reel.loop.e[reel.track.selected])
         elseif settings_list.index == 4 then
-          reel.loop.e[reel.track.selected] = util.clamp(reel.loop.e[reel.track.selected] + d / 10,reel.loop.s[reel.track.selected],util.round(reel.track.length[reel.track.selected],0.1))
+          reel.loop.e[reel.track.selected] = util.clamp(reel.loop.e[reel.track.selected] + d / 10, reel.loop.s[reel.track.selected], util.round(reel.track.length[reel.track.selected],0.1))
           reels.set_loop(reel.track.selected,reel.loop.s[reel.track.selected],reel.loop.e[reel.track.selected])
         elseif settings_list.index == 6 then
-          reel.track.quality[reel.track.selected] = util.clamp(reel.track.quality[reel.track.selected] + d,1,24)
+          reel.track.quality[reel.track.selected] = util.clamp(reel.track.quality[reel.track.selected] + d, 1, 24)
           reels.update_rate(reel.track.selected)
         elseif settings_list.index == 7 then
           ui.tape.flutter.on  = not ui.tape.flutter.on
@@ -847,22 +843,22 @@ function reels:redraw()
     screen.font_size(8)
     if not filesel then
       screen.clear()
-      reels.draw_reel(ui.reel.pos.x,ui.reel.pos.y)
-      reels.draw_cursor(ui.cursor.x,ui.cursor.y)
-      reels.draw_bars(15,61)
+      reels.draw_reel(ui.reel.pos.x, ui.reel.pos.y)
+      reels.draw_cursor(ui.cursor.x, ui.cursor.y)
+      reels.draw_bars(15, 61)
       if recording then
         screen.level(blink and 5 or 15)
-        screen.circle(ui.reel.pos.x + 80,ui.reel.pos.y + 30,4)
+        screen.circle(ui.reel.pos.x + 80, ui.reel.pos.y + 30, 4)
         screen.fill()
         screen.stroke()
       end
       if not settings then
-        reels.draw_rec_vol_slider(ui.reel.pos.x,ui.reel.pos.y)
+        reels.draw_rec_vol_slider(ui.reel.pos.x, ui.reel.pos.y)
       end
       if settings and ui.reel.pos.x < -15 then
         if mounted then
           screen.level(6)
-          screen.move(128,5)
+          screen.move(128, 5)
           screen.text_right(reel.track.name[reel.track.selected]:match("[^.]*"))
           screen.stroke()
           settings_list:redraw()
