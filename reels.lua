@@ -30,3 +30,7 @@ end
 function redraw()
   reels:redraw()
 end
+
+function cleanup()
+  poll:clear_all ()	
+end
