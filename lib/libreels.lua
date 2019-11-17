@@ -781,6 +781,7 @@ function reels:enc(n, d)
       if not settings then
         rec_vol = util.clamp(rec_vol + d / 100, 0, 1)
         mix:set_raw("monitor", rec_vol)
+        audio.level_adc_cut(rec_vol)
         softcut.rec_level(sel, rec_vol)
       elseif settings then
         settings_list:set_index_delta(util.clamp(d, -1, 1), false)
