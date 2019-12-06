@@ -72,7 +72,7 @@ reels.update_rate = function(i)
   local n = math.pow( 2, reel.playback.speed)
   reel.playback.speed = math.abs(speed)
   if reel.playback.reverse then n = -n end
-  softcut.rate(i, n / reel.track.quality[i])
+  if playing then softcut.rate(i, n / reel.track.quality[i]) end
 end
 
 reels.flutter = function(state)
@@ -87,9 +87,11 @@ reels.flutter = function(state)
 end
 
 reels.phase = function(t, x)
-  reel.track.time[t] = x
-  if recording then reel.rec.time = reel.track.time[reel.track.selected] end
-  reels.flutter(ui.tape.flutter.on)
+  if playing then 
+    reel.track.time[t] = x 
+    reels.flutter(ui.tape.flutter.on)
+    if recording then reel.rec.time = reel.track.time[reel.track.selected] end
+  end
 end
 
 reels.menu_loop_pos = function(tr, pos)
@@ -207,6 +209,7 @@ reels.play = function(state)
     for i=1, total_tracks do
       softcut.play(i, 1)
       reel.track.play[i] = true
+      softcut.poll_start_phase()
     end
   elseif state == false then
     playing = false
@@ -214,6 +217,7 @@ reels.play = function(state)
     if reel.track.rec[i] then reels.rec(i, false) end
       softcut.play(i, 0)
       reel.track.play[i] = false
+      softcut.poll_stop_phase()
     end
   end
 end
@@ -254,33 +258,31 @@ reels.new_reel = function()
 end
 
 reels.load_clip = function(path)
-  local tr = reel.track
-  local sel = tr.selected
-
   if path ~= "cancel" then
     if path:find(".aif") or path:find(".wav") then
-      local ch, len = sound_file_inspect(path)
-      reel.paths[sel] = path
-      tr.clip[sel] = true
-      tr.name[sel] = path:match("[^/]*$")
+      local ch, len = audio.file_info(path)
+      reel.paths[reel.track.selected] = path
+      reel.track.clip[reel.track.selected] = true
+      reel.track.name[reel.track.selected] = path:match("[^/]*$")
       if len / 48000 <= 60 then 
-	      tr.length[sel] = len / 48000
+	      reel.track.length[reel.track.selected] = len / 48000
       else
-	      tr.length[sel] = 59.9
+	      reel.track.length[reel.track.selected] = 60
       end
-      reel.e[sel] = reel.s[sel] + tr.length[sel]
-      if not path:find(reel.proj) then reel.loop.e[sel] = tr.length[sel] end
-      print("read to " .. reel.s[sel], reel.e[sel])
-      softcut.buffer_read_mono(path, 0, reel.s[sel], tr.length[sel], 1, 1)
-      if not playing then softcut.play(sel, 0) end
-      tr.time[sel] = 0
-      softcut.position(sel, reel.s[sel])
-      softcut.level(sel, tr.level[sel])
-      reels.mute(sel, false)
+      reel.e[reel.track.selected] = reel.s[reel.track.selected] + reel.track.length[reel.track.selected]
+      if not path:find(reel.proj) then 
+        reel.loop.e[reel.track.selected] = reel.track.length[reel.track.selected] 
+        reel.track.time[reel.track.selected] = reel.s[reel.track.selected]
+        reels.set_loop(reel.track.selected, reel.s[reel.track.selected], reel.loop.e[reel.track.selected])
+      end
+      softcut.buffer_read_mono(path, 0, reel.s[reel.track.selected], reel.track.length[reel.track.selected], 1, 1)
+      print("read to " .. reel.s[reel.track.selected], reel.e[reel.track.selected])
+      if not playing then softcut.play(reel.track.selected, 0) end
+      --softcut.level(reel.track.selected, reel.track.level[reel.track.selected])
+      reels.mute(reel.track.selected, false)
       mounted = true
-      reels.update_rate(sel)
+      reels.update_rate(reel.track.selected)
       reels.update_params_list()
-      reels.set_loop(sel, 0, reel.loop.e[sel])
     else
       print("not a sound file")
     end
@@ -300,6 +302,7 @@ reels.load_reel_data = function(pth)
 end
 
 reels.load_reel = function(path)
+  softcut.poll_stop_phase()
   if path ~= "cancel" then
     if path:find(".reel") then
       reels.load_reel_data(path)
@@ -309,8 +312,9 @@ reels.load_reel = function(path)
         if reel.track.name[i] ~= "-" then
           reels.load_clip(reel.paths[i])
           reel.track.selected = util.clamp(reel.track.selected + 1, 1, total_tracks)
-          reel.track.time[i] = reel.loop.s[i]
-          softcut.position(i, reel.s[i] + reel.loop.s[i])
+          reels.set_loop(i, reel.loop.s[i], reel.loop.e[i])
+          softcut.position(i, reel.loop.s[i])
+          softcut.level(reel.track.selected, reel.track.level[reel.track.selected])
           reels.update_rate(i)
           softcut.play(i, 0)
         end
@@ -325,6 +329,8 @@ reels.load_reel = function(path)
   end
   filesel = false
   reels.update_params_list()
+  settings_list.index = 1
+  settings_amounts_list.index = 1
 end
 
 reels.save_clip = function(txt)
@@ -346,11 +352,11 @@ reels.save_project = function(txt)
     for i=1, total_tracks do
       if reel.track.name[i] ~= "-" then
         if reel.track.name[i]:find("*") then
-          local name = reel.track.name[i] == "*-" and (txt .. "-rec-" .. i .. ".aif") or reel.track.name[i]:sub(2,-1) -- remove asterisk
-          local save_path = _path.audio .."reels/" .. name
+          reel.track.name[i] = reel.track.name[i] == "*-" and (txt .. "-rec-" .. i .. ".aif") or reel.track.name[i]:sub(2,-1)
+          local save_path = _path.audio .."reels/" .. reel.track.name[i]
           reel.paths[i] = save_path
-          print("saving ".. i .. "clip at " .. save_path, reel.s[i],reel.e[i])
-          softcut.buffer_write_mono(_path.audio .."reels/" .. name, reel.s[i],reel.e[i], 1)
+          softcut.buffer_write_mono(_path.audio .."reels/" .. reel.track.name[i], reel.s[i], reel.e[i], 1)
+          print("saving ".. i .. " clip at " .. save_path, reel.s[i],reel.e[i])
         end
       end
     end
@@ -384,12 +390,11 @@ reels.init = function()
 
   
   softcut.event_phase(reels.phase)
-  softcut.poll_start_phase()
 
   for i=1, 4 do
     softcut.level(i,1)
-    softcut.level_input_cut(1, i, 1.0)
-    softcut.level_input_cut(2, i, 1.0)
+    softcut.level_input_cut(1, i, 1)
+    softcut.level_input_cut(2, i, 1)
     softcut.pan(i, 0)
     softcut.play(i, 0)
     softcut.rate(i, 1)
@@ -402,7 +407,7 @@ reels.init = function()
 
     softcut.fade_time(i, 0.01)
     softcut.level_slew_time(i, 0)
-    softcut.rate_slew_time(i, 1)
+    softcut.rate_slew_time(i, 0.5)
 
     softcut.rec_level(i, 1)
     softcut.pre_level(i, 1)
@@ -410,7 +415,10 @@ reels.init = function()
     softcut.buffer(i,1)
     softcut.enable(i, 1)
     reels.update_rate(i)
+    
+   
 
+    softcut.filter_br(i, 0)
     softcut.filter_dry(i, 1);
     softcut.filter_fc(i, 0);
     softcut.filter_lp(i, 0);
@@ -576,9 +584,9 @@ reels.draw_reel = function(x, y)
       x2 = x + 65
       x3 = x + 70
     elseif (flutter.on and playing) then
-      x1 =  x + 65 - (flutter.amount * math.random(5) / 40)
-      x2 =  x + 65 - (flutter.amount * math.random(10) / 20)
-      x3 =  x + 70 - (flutter.amount * math.random(5) / 40)
+      x1 =  x + 65 - math.random(0, 5)
+      x2 =  x + 65 - math.random(0, 10)
+      x3 =  x + 70 - math.random(0, 5)
     end
     screen.move(x, y - 17)
     screen.curve(x1, y - 12, x2, y - 12, x3, y - 12)
@@ -596,8 +604,19 @@ reels.draw_reel = function(x, y)
     screen.circle(x + 65, y, 13)
     screen.stroke()
     screen.level(6)
-    screen.move(x + 75, y + 10)
-    screen.line(x + 55, y + 30)
+    if not flutter.on or (flutter.on and not playing) then
+      x1 = x + 75
+      x2 = x + 65
+      x3 = x + 55
+    elseif (flutter.on and playing) then
+      x1 =  x + 75 + math.random(0, 1)-- (flutter.amount * math.random(5) / 40)
+      x2 =  x + 65 +  math.random(0, 1)
+      x3 =  x + 55 + math.random(0, 1) -- (flutter.amount * math.random(5) / 40)
+    end
+
+    screen.curve(x1, y + 10, x2, y + 20, x3, y + 30)
+    --screen.move(x + 75, y + 10)
+    --screen.line(x + 55, y + 30)
     screen.stroke()
     screen.move(x - 9, y + 16)
     screen.line(x + 5, y + 30)
@@ -801,7 +820,7 @@ function reels:enc(n, d)
       elseif (settings and mounted) then
         if settings_list.index == 1 and reel.track.mute[sel] == false then
           reel.track.level[sel] = util.clamp(reel.track.level[sel] + d / 100, 0, 1)
-          softcut.level(sel,reel.track.level[sel])
+          softcut.level(sel, reel.track.level[sel])
           reels.update_params_list()
         elseif settings_list.index == 2 then
           local loop_len = reel.loop.e[sel] - reel.loop.s[sel]
@@ -810,10 +829,10 @@ function reels:enc(n, d)
           reels.set_loop(sel, reel.loop.s[sel], reel.loop.e[sel])
         elseif settings_list.index == 3 then
           reel.loop.s[sel] = util.clamp(reel.loop.s[sel] + d / 10, 0, reel.loop.e[sel])
-          reels.set_loop(sel,reel.loop.s[sel],reel.loop.e[sel])
+          reels.set_loop(sel, reel.loop.s[sel],reel.loop.e[sel])
         elseif settings_list.index == 4 then
           reel.loop.e[sel] = util.clamp(reel.loop.e[sel] + d / 10, reel.loop.s[sel], util.round(reel.track.length[sel],0.1))
-          reels.set_loop(sel,reel.loop.s[sel],reel.loop.e[sel])
+          reels.set_loop(sel, reel.loop.s[sel],reel.loop.e[sel])
         elseif settings_list.index == 6 then
           reel.track.quality[sel] = util.clamp(reel.track.quality[sel] + d, 1, 24)
           reels.update_rate(sel)

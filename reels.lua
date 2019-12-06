@@ -32,5 +32,7 @@ function redraw()
 end
 
 function cleanup()
-  poll:clear_all ()	
+  vu_l:stop()
+  vu_r:stop()
+  poll:clear_all()
 end
