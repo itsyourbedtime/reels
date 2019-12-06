@@ -604,7 +604,7 @@ reels.draw_reel = function(x, y)
     screen.circle(x + 65, y, 13)
     screen.stroke()
     screen.level(6)
-    if not flutter.on or (flutter.on and not playing) then
+--[[    if not flutter.on or (flutter.on and not playing) then
       x1 = x + 75
       x2 = x + 65
       x3 = x + 55
@@ -614,9 +614,9 @@ reels.draw_reel = function(x, y)
       x3 =  x + 55 + math.random(0, 1) -- (flutter.amount * math.random(5) / 40)
     end
 
-    screen.curve(x1, y + 10, x2, y + 20, x3, y + 30)
-    --screen.move(x + 75, y + 10)
-    --screen.line(x + 55, y + 30)
+    screen.curve(x1, y + 10, x2, y + 20, x3, y + 30)]]
+    screen.move(x + 75, y + 10)
+    screen.line(x + 55, y + 30)
     screen.stroke()
     screen.move(x - 9, y + 16)
     screen.line(x + 5, y + 30)
