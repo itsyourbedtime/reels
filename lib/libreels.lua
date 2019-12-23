@@ -96,7 +96,7 @@ end
 
 reels.menu_loop_pos = function(tr, pos)
   local init_string = "           "
-  return ("%s%s%s"):format(init_string:sub(1,pos-1), "-", init_string:sub(pos+1))
+  return ("%s%s%s"):format(init_string:sub(1, pos - 1), "-", init_string:sub( pos + 1 ))
 end
 
 reels.update_params_list = function()
@@ -633,25 +633,27 @@ reels.draw_reel = function(x, y)
   screen.fill()
 end
 
+
 reels.draw_bars = function(x, y)
   local tr = reel.track
   for i=1, total_tracks do
     screen.level(tr.mute[i] and 1 or tr.rec[i] and 9 or 3)
-    screen.rect((x * i *2) - 24, y, 26, 3)
+    screen.rect((x * i * 2) - 24, y, 26, 3)
     screen.stroke()
     screen.rect((x * i *2) - 24, y, 25, 3)
     screen.fill()
     screen.level(0)
-    local s = (reel.loop.s[i] - 1) / tr.length[i] * 25
-    screen.rect(((x * i *2) - 24) + s, 61, ((reel.loop.e[i] + 1) / tr.length[i] * 25) - s, 2)
+    local s = (reel.loop.s[i]) / tr.length[i] * 25
+    screen.rect(((x * i *2) - 24) + s, 61, ((reel.loop.e[i]) / tr.length[i] * 25) - s, 2)
     screen.fill()
     screen.level(15)
-    pos = tr.time[i] == 0 and 1 or tr.time[i] - (60 * i) + 60
+    local pos = tr.time[i] == 0 and 1 or tr.time[i] - (60 * i) + 60
     screen.move(((x * i * 2) - 24) + ((pos / (tr.length[i]) * 25)), 61)
     screen.line_rel(0, 2)
     screen.stroke()
   end
 end
+
 
 
 
@@ -824,7 +826,7 @@ function reels:enc(n, d)
           reels.update_params_list()
         elseif settings_list.index == 2 then
           local loop_len = reel.loop.e[sel] - reel.loop.s[sel]
-          reel.loop.s[sel] = util.clamp(reel.loop.s[sel] + d / 10, 0, 59)
+          reel.loop.s[sel] = util.clamp(reel.loop.s[sel] + d / 10, 0, reel.track.length[sel])
           reel.loop.e[sel] = util.clamp(reel.loop.s[sel] + loop_len, reel.loop.s[sel], reel.track.length[sel])
           reels.set_loop(sel, reel.loop.s[sel], reel.loop.e[sel])
         elseif settings_list.index == 3 then
