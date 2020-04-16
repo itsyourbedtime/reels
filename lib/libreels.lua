@@ -12,6 +12,8 @@ local textentry = require "textentry"
 local playing, recording, filesel, settings, mounted, blink = false, false, false, false, false, false
 local speed, clip_length, rec_vol, input_vol, engine_vol, total_tracks, in_l, in_r = 0, 60, 1, 1, 0, 4, 0, 0
 
+local g = grid.connect()
+
 local ui = {
     speed = { ">", ">>", ">>>", ">>>>", "<", "<<", "<<<", "<<<<" },
     cursor = { 
@@ -885,6 +887,41 @@ function reels:redraw()
     end
   end
   screen.update()
+
+  gridredraw()
+end
+
+function gridredraw()
+  g:all(0)
+  if recording then
+    g:led(2, 1, 15)
+  else
+    g:led(2, 1, 0)
+  end
+  if playing then
+    g:led(1, 1, 3)
+  else
+    g:led(1, 1, 0)
+  end
+  g:led(1, 2, 6)
+  g:led(2, 2, 6)
+  g:led(3, 2, 6)
+  g:led(4, 2, 6)
+  g:led(reel.track.selected, 2, 12)
+  g:refresh()
+end
+
+function g.key(x, y, z)
+  if z == 0 then
+    return
+  end
+  if y == 1 and x == 2 then
+    reels.rec(reel.track.selected, not recording)
+  elseif y == 1 and x == 1 then
+    reels.play(not playing)
+  elseif y == 2 and x <= 4 then
+    reel.track.selected = x
+  end
 end
 
 return reels 
