@@ -894,20 +894,29 @@ end
 function gridredraw()
   g:all(0)
   if recording then
-    g:led(2, 1, 15)
+    g:led(2, 1, 16)
   else
-    g:led(2, 1, 0)
+    g:led(2, 1, 13)
   end
   if playing then
-    g:led(1, 1, 3)
+    g:led(1, 1, 5)
   else
-    g:led(1, 1, 0)
+    g:led(1, 1, 1)
   end
-  g:led(1, 2, 6)
-  g:led(2, 2, 6)
-  g:led(3, 2, 6)
-  g:led(4, 2, 6)
+
+  --Tracks
+  g:led(1, 2, 8)
+  g:led(2, 2, 8)
+  g:led(3, 2, 8)
+  g:led(4, 2, 8)
   g:led(reel.track.selected, 2, 12)
+
+  --Clear track pads
+  g:led(1, 3, 15)
+  g:led(2, 3, 15)
+  g:led(3, 3, 15)
+  g:led(4, 3, 13)
+
   g:refresh()
 end
 
@@ -921,6 +930,8 @@ function g.key(x, y, z)
     reels.play(not playing)
   elseif y == 2 and x <= 4 then
     reel.track.selected = x
+  elseif y == 3 and x <= 4 then
+    reels.clear_track(x)
   end
 end
 
