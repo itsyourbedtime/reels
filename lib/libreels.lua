@@ -468,6 +468,8 @@ reels.init = function()
   reels.update:start()
   --
   if reels.active then params:set("tape_switch", 2) else params:set("tape_switch", 1) end
+
+  gridredraw()
 end
 
 function reels.update_reel()
@@ -779,6 +781,8 @@ function reels:key(n, z)
     end
   else
   end
+
+  gridredraw()
 end
 
 function reels:enc(n, d)
@@ -851,6 +855,8 @@ function reels:enc(n, d)
     end
   else
   end
+
+  gridredraw()
 end
 
 function reels:redraw()
@@ -887,8 +893,6 @@ function reels:redraw()
     end
   end
   screen.update()
-
-  gridredraw()
 end
 
 function gridredraw()
@@ -933,6 +937,8 @@ function g.key(x, y, z)
   elseif y == 3 and x <= 4 then
     reels.clear_track(x)
   end
+
+  gridredraw()
 end
 
 return reels 
