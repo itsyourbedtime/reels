@@ -371,7 +371,7 @@ reels.init = function()
   audio.level_cut(1)
   audio.level_adc_cut(1)
   audio.level_eng_cut(0)
-  mix:set_raw("monitor", rec_vol)
+  params:set("monitor", rec_vol)
   params:add_option ( "tape_switch", "Reels:", { "background", "active" }, 1 )
   params:set_action( "tape_switch", function(x) if x == 1 then reels.active = false else reels.active = true end end )
   params:add_separator()
@@ -801,7 +801,7 @@ function reels:enc(n, d)
     elseif n == 2 then
       if not settings then
         rec_vol = util.clamp(rec_vol + d / 100, 0, 1)
-        mix:set_raw("monitor", rec_vol)
+        params:set("monitor", rec_vol)
         audio.level_adc_cut(rec_vol)
         softcut.rec_level(sel, rec_vol)
       elseif settings then
